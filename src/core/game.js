@@ -6,7 +6,8 @@ import { GAME_MODES, createIdleInput } from '../shared/contracts.js';
 
 function readBest(storage) {
   try {
-    return Math.max(1, Number(storage?.getItem(GAME_CONFIG.storageKey) || 1) || 1);
+    const stored = Number(storage?.getItem(GAME_CONFIG.storageKey));
+    return Number.isFinite(stored) && stored >= 1 ? Math.floor(stored) : 1;
   } catch {
     return 1;
   }
@@ -58,12 +59,12 @@ export class Game {
       ? state.previewCoins.map((coin) => ({ ...coin }))
       : createCoins(state.level, GAME_CONFIG.start, this.random);
     state.previewCoins = null;
-    state.graceLeft = this.ghostSystem.count > 0 ? GAME_CONFIG.gracePeriod : 0;
     state.shieldGrace = 0;
     state.outcome = null;
     resetPlayer(state.player, GAME_CONFIG.start);
     this.ghostSystem.beginLevel({ level: state.level, startPosition: state.player });
     state.ghosts = this.ghostSystem.getGhosts(0);
+    state.graceLeft = state.ghosts.length > 0 ? GAME_CONFIG.gracePeriod : 0;
   }
 
   advance() {
@@ -82,11 +83,11 @@ export class Game {
 
   update(deltaSeconds, input = createIdleInput()) {
     const state = this.state;
-    const delta = clamp(deltaSeconds, 0, 0.05);
+    const delta = Number.isFinite(deltaSeconds) ? clamp(deltaSeconds, 0, 0.05) : 0;
 
     if (state.mode === GAME_MODES.PREP) {
       state.prepLeft = Math.max(0, state.prepLeft - delta);
-      if (input.skill) this.ghostSystem.buySkill(input.skill);
+      if (input.skill) this.ghostSystem.buySkill?.(input.skill);
       if (state.prepLeft <= 0) this.nextLevel();
       return;
     }
@@ -95,14 +96,16 @@ export class Game {
 
     state.elapsed = Math.min(GAME_CONFIG.roundDuration, state.elapsed + delta);
     state.timeLeft = Math.max(0, GAME_CONFIG.roundDuration - state.elapsed);
-    state.graceLeft = Math.max(0, GAME_CONFIG.gracePeriod - state.elapsed);
     state.shieldGrace = Math.max(0, state.shieldGrace - delta);
 
     updatePlayer(state.player, input, delta, state.arena, GAME_CONFIG.speed);
     this.ghostSystem.recordPosition({ time: state.elapsed, position: state.player });
     state.ghosts = this.ghostSystem.getGhosts(state.elapsed);
+    state.graceLeft = state.ghosts.length > 0
+      ? Math.max(0, GAME_CONFIG.gracePeriod - state.elapsed)
+      : 0;
 
-    const radiusMult = this.ghostSystem.getCoinRadiusMult();
+    const radiusMult = this.ghostSystem.getCoinRadiusMult?.() ?? 1;
     const collected = collectCoins(
       state.player,
       state.coins,
@@ -112,18 +115,26 @@ export class Game {
     for (const coin of collected) {
       state.coinsGot += 1;
       state.score += 100;
-      if (state.coinsGot === state.goal + 1) this.ghostSystem.addPoints(1);
-      else if (state.coinsGot === state.goal + 2) this.ghostSystem.addPoints(2);
+      if (state.coinsGot === state.goal + 1) this.ghostSystem.addPoints?.(1);
+      else if (state.coinsGot === state.goal + 2) this.ghostSystem.addPoints?.(2);
       this.events.push({ type: 'coin', x: coin.x, y: coin.y });
     }
 
-    if (state.shieldGrace <= 0 && state.elapsed > GAME_CONFIG.gracePeriod) {
+    // Reaching the round deadline settles the level before collision checks. The
+    // player has already fulfilled the rule of surviving for the full 10 seconds.
+    if (state.elapsed >= GAME_CONFIG.roundDuration) {
+      if (state.coinsGot >= state.goal) this.completeLevel();
+      else this.lose('timeout');
+      return;
+    }
+
+    if (state.graceLeft === 0 && state.shieldGrace <= 0) {
       const hit = state.ghosts.find((ghost) => (
         distance(state.player, ghost) < GAME_CONFIG.playerRadius + GAME_CONFIG.ghostRadius - 5
       ));
       if (hit) {
-        if (this.ghostSystem.consumeShield()) {
-          this.ghostSystem.forgiveGhost(hit.sourceLevel);
+        if (this.ghostSystem.consumeShield?.()) {
+          this.ghostSystem.forgiveGhost?.(hit.sourceLevel);
           state.ghosts = this.ghostSystem.getGhosts(state.elapsed);
           state.shieldGrace = GAME_CONFIG.shieldInvincibility;
           this.events.push({ type: 'shield', x: hit.x, y: hit.y });
@@ -134,10 +145,6 @@ export class Game {
       }
     }
 
-    if (state.elapsed >= GAME_CONFIG.roundDuration) {
-      if (state.coinsGot >= state.goal) this.completeLevel();
-      else this.lose('timeout');
-    }
   }
 
   completeLevel() {
@@ -165,9 +172,9 @@ export class Game {
       finishedLevel,
       nextLevel,
       coinsGot: state.coinsGot,
-      ghostCount: this.ghostSystem.count,
+      ghostCount: state.ghosts.length,
       score: state.score,
-      points: this.ghostSystem.getPoints()
+      points: this.ghostSystem.getPoints?.() ?? 0
     };
     this.events.push({ type: 'clear', x: state.player.x, y: state.player.y });
   }
@@ -210,13 +217,13 @@ export class Game {
       arena: { ...state.arena },
       graceLeft: state.graceLeft,
       prepLeft: state.prepLeft,
-      points: this.ghostSystem.getPoints(),
-      pointCap: this.ghostSystem.getPointCap(),
-      skills: this.ghostSystem.getSkills(),
+      points: this.ghostSystem.getPoints?.() ?? 0,
+      pointCap: this.ghostSystem.getPointCap?.() ?? 0,
+      skills: this.ghostSystem.getSkills?.() ?? [],
       previewCoins: state.previewCoins
         ? state.previewCoins.map((coin) => ({ ...coin }))
         : null,
-      previewPaths: this.ghostSystem.getPreviewPaths(),
+      previewPaths: this.ghostSystem.getPreviewPaths?.() ?? [],
       shieldGrace: state.shieldGrace,
       outcome: state.outcome ? { ...state.outcome } : null
     };

@@ -10,14 +10,20 @@ export function resetPlayer(player, start) {
 }
 
 export function updatePlayer(player, input, deltaSeconds, arena, speed) {
-  const dxKey = Number(input.right) - Number(input.left);
-  const dyKey = Number(input.down) - Number(input.up);
+  const hasKeyboardInput = Boolean(input.left || input.right || input.up || input.down);
+  const dxKey = Number(Boolean(input.right)) - Number(Boolean(input.left));
+  const dyKey = Number(Boolean(input.down)) - Number(Boolean(input.up));
 
   if (dxKey !== 0 || dyKey !== 0) {
     const length = Math.hypot(dxKey, dyKey);
     player.x += (dxKey / length) * speed * deltaSeconds;
     player.y += (dyKey / length) * speed * deltaSeconds;
-  } else if (input.pointer.active) {
+  } else if (
+    !hasKeyboardInput
+    && input.pointer?.active
+    && Number.isFinite(input.pointer.x)
+    && Number.isFinite(input.pointer.y)
+  ) {
     const dx = input.pointer.x - player.x;
     const dy = input.pointer.y - player.y;
     const length = Math.hypot(dx, dy);

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game } from '../src/core/game.js';
 import { createCoins } from '../src/core/coin.js';
+import { GAME_CONFIG } from '../src/core/config.js';
+import { createPlayer, updatePlayer } from '../src/core/player.js';
 import { GhostSystem } from '../src/ghost/ghost.js';
 import { interpolateTrack } from '../src/ghost/replay.js';
 import { createIdleInput, GAME_MODES } from '../src/shared/contracts.js';
@@ -31,6 +33,74 @@ test('first level keeps the five original coin positions', () => {
     { x: 703, y: 398, taken: false },
     { x: 262, y: 390, taken: false }
   ]);
+});
+
+test('later levels always create five separated coins away from spawn', () => {
+  const coins = createCoins(8, GAME_CONFIG.start, () => 0.5);
+  assert.equal(coins.length, GAME_CONFIG.coinCount);
+  for (const coin of coins) {
+    assert.ok(Math.hypot(coin.x - GAME_CONFIG.start.x, coin.y - GAME_CONFIG.start.y) >= 93);
+    assert.equal(coin.taken, false);
+  }
+  for (let left = 0; left < coins.length; left += 1) {
+    for (let right = left + 1; right < coins.length; right += 1) {
+      assert.ok(Math.hypot(coins[left].x - coins[right].x, coins[left].y - coins[right].y) >= 80);
+    }
+  }
+});
+
+test('player movement is normalized, bounded, and switches input modes safely', () => {
+  const player = createPlayer(GAME_CONFIG.start, GAME_CONFIG.playerRadius);
+  const diagonal = {
+    ...createIdleInput(),
+    right: true,
+    down: true
+  };
+  updatePlayer(player, diagonal, 1, GAME_CONFIG.arena, 100);
+  assert.ok(Math.abs(Math.hypot(player.x - 480, player.y - 270) - 100) < 1e-9);
+
+  const beforeConflict = { ...player };
+  updatePlayer(player, {
+    ...createIdleInput(),
+    left: true,
+    right: true,
+    pointer: { active: true, x: 900, y: 500 }
+  }, 1, GAME_CONFIG.arena, 100);
+  assert.deepEqual(player, beforeConflict);
+
+  updatePlayer(player, {
+    ...createIdleInput(),
+    pointer: { active: true, x: 900, y: 500 }
+  }, 10, GAME_CONFIG.arena, 1000);
+  assert.equal(player.x, GAME_CONFIG.arena.x + GAME_CONFIG.arena.w - player.radius - 4);
+  assert.equal(player.y, GAME_CONFIG.arena.y + GAME_CONFIG.arena.h - player.radius - 4);
+
+  updatePlayer(player, {
+    ...createIdleInput(),
+    pointer: { active: true, x: Number.NaN, y: 100 }
+  }, 1, GAME_CONFIG.arena, 100);
+  assert.ok(Number.isFinite(player.x) && Number.isFinite(player.y));
+});
+
+test('coin collection scores and emits feedback exactly once', () => {
+  const game = new Game({ storage: createStorage() });
+  game.advance();
+  game.state.player.x = game.state.coins[0].x;
+  game.state.player.y = game.state.coins[0].y;
+
+  game.update(0, createIdleInput());
+  assert.equal(game.getSnapshot().coinsGot, 1);
+  assert.equal(game.getSnapshot().score, 100);
+  assert.deepEqual(game.consumeEvents(), [{
+    type: 'coin',
+    x: game.state.coins[0].x,
+    y: game.state.coins[0].y
+  }]);
+
+  game.update(0, createIdleInput());
+  assert.equal(game.getSnapshot().coinsGot, 1);
+  assert.equal(game.getSnapshot().score, 100);
+  assert.deepEqual(game.consumeEvents(), []);
 });
 
 test('track replay uses time-based linear interpolation', () => {
@@ -95,4 +165,84 @@ test('game clears level one, creates a ghost, detects collision, and restarts', 
   assert.equal(snapshot.mode, GAME_MODES.PLAYING);
   assert.equal(snapshot.level, 1);
   assert.equal(snapshot.ghosts.length, 0);
+});
+
+test('game keeps timers finite and reports no grace period without ghosts', () => {
+  const game = new Game({ storage: createStorage() });
+  game.advance();
+  game.update(Number.NaN, createIdleInput());
+  const snapshot = game.getSnapshot();
+  assert.equal(snapshot.elapsed, 0);
+  assert.equal(snapshot.timeLeft, GAME_CONFIG.roundDuration);
+  assert.equal(snapshot.graceLeft, 0);
+});
+
+test('round completion wins over a collision exactly at the ten-second deadline', () => {
+  const ghostSystem = {
+    reset() {},
+    beginLevel() {},
+    recordPosition() {},
+    finishLevel() { return { id: 'ghost-1', sourceLevel: 1 }; },
+    getGhosts() {
+      return [{ id: 'ghost-1', sourceLevel: 1, x: GAME_CONFIG.start.x, y: GAME_CONFIG.start.y }];
+    }
+  };
+  const game = new Game({ storage: createStorage(), ghostSystem });
+  game.state.level = 2;
+  game.beginLevel();
+  game.state.coinsGot = GAME_CONFIG.coinGoal;
+  game.state.elapsed = GAME_CONFIG.roundDuration - 0.05;
+
+  game.update(0.05, createIdleInput());
+
+  const snapshot = game.getSnapshot();
+  assert.equal(snapshot.mode, GAME_MODES.PREP);
+  assert.equal(snapshot.outcome.kind, 'clear');
+});
+
+test('game integrates with only the documented ghost system methods', () => {
+  const history = [{ id: 'ghost-1', sourceLevel: 1, x: 100, y: 100 }];
+  const ghostSystem = {
+    reset() {},
+    beginLevel() {},
+    recordPosition() {},
+    finishLevel() { return { id: 'ghost-2', sourceLevel: 2 }; },
+    getGhosts() { return history.map((ghost) => ({ ...ghost })); }
+  };
+  const game = new Game({ storage: createStorage(), ghostSystem });
+  game.state.level = 2;
+  game.beginLevel();
+
+  const snapshot = game.getSnapshot();
+  assert.equal(snapshot.ghosts.length, 1);
+  assert.equal(snapshot.graceLeft, GAME_CONFIG.gracePeriod);
+  assert.equal(snapshot.points, 0);
+  assert.equal(snapshot.pointCap, 0);
+  assert.deepEqual(snapshot.skills, []);
+  assert.deepEqual(snapshot.previewPaths, []);
+});
+
+test('restart resets score, level, ghost history, and outcome after timeout', () => {
+  const game = new Game({ storage: createStorage() });
+  game.advance();
+  game.state.score = 200;
+  game.state.elapsed = GAME_CONFIG.roundDuration - 0.05;
+  game.update(0.05, createIdleInput());
+  assert.equal(game.getSnapshot().mode, GAME_MODES.OVER);
+
+  game.advance();
+  const snapshot = game.getSnapshot();
+  assert.equal(snapshot.mode, GAME_MODES.PLAYING);
+  assert.equal(snapshot.level, 1);
+  assert.equal(snapshot.score, 0);
+  assert.equal(snapshot.ghosts.length, 0);
+  assert.equal(snapshot.outcome, null);
+});
+
+test('invalid saved best value falls back to level one', () => {
+  const storage = {
+    getItem: () => 'Infinity',
+    setItem() {}
+  };
+  assert.equal(new Game({ storage }).getSnapshot().best, 1);
 });

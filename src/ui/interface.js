@@ -29,7 +29,6 @@ export function createInterface({ canvas, onAction, getMode }) {
     element('quickRules').innerHTML = rules.map((rule) => `<span>${rule}</span>`).join('');
     element('dialogNote').textContent = note || '';
     actionButton.textContent = button;
-    overlay.classList.remove('hidden');
   }
 
   function showDialog(snapshot) {
@@ -39,10 +38,15 @@ export function createInterface({ canvas, onAction, getMode }) {
 
     if (snapshot.mode === GAME_MODES.PLAYING || snapshot.mode === GAME_MODES.PREP) {
       overlay.classList.add('hidden');
+      overlay.classList.remove('mode-menu', 'mode-clear', 'mode-over');
       return;
     }
 
+    overlay.classList.remove('hidden');
+
     if (snapshot.mode === GAME_MODES.MENU) {
+      overlay.classList.add('mode-menu');
+      overlay.classList.remove('mode-clear', 'mode-over');
       setModal({
         icon: '👻',
         tag: 'A GAME ABOUT YOUR PAST',
@@ -56,9 +60,26 @@ export function createInterface({ canvas, onAction, getMode }) {
     }
 
     const outcome = snapshot.outcome;
+    if (snapshot.mode === GAME_MODES.CLEAR) {
+      overlay.classList.add('mode-clear');
+      overlay.classList.remove('mode-menu', 'mode-over');
+      setModal({
+        icon: '✨',
+        tag: 'LEVEL CLEAR · TIME LOOP ACTIVATED',
+        title: `第 ${outcome.finishedLevel} 关成功！`,
+        description: `你拿到了 <strong>${outcome.coinsGot} / 5</strong> 颗星星！下一关，<strong>第 ${outcome.finishedLevel} 关的你</strong>将加入追杀。<br>你刚才走过的每一步，都可能成为新的危险。`,
+        button: `进入第 ${outcome.nextLevel} 关 →`,
+        note: '提示：可以刻意规划路线，给未来的自己留活路。',
+        rules: [`🪙 本关 ${outcome.coinsGot} 颗`, `👻 下关 ${outcome.ghostCount} 个幽灵`, `✦ 累计 ${outcome.score} 分`]
+      });
+      return;
+    }
+
     const hitGhost = outcome.reason === 'ghost';
     const title = hitGhost ? `被第 ${outcome.sourceLevel} 关的自己干掉了！` : '时间到了，星星没拿够！';
     const roast = hitGhost ? '系统评价：建议少和过去的自己来往。' : '系统评价：你的人生，还差几颗星星。';
+    overlay.classList.add('mode-over');
+    overlay.classList.remove('mode-menu', 'mode-clear');
     setModal({
       icon: hitGhost ? '💀' : '⏰',
       tag: 'GAME OVER · YOUR PAST WON',
@@ -155,8 +176,10 @@ export function createInterface({ canvas, onAction, getMode }) {
     update(snapshot) {
       skills = snapshot.skills || [];
       metrics.level.textContent = String(snapshot.level).padStart(2, '0');
+      const urgent = snapshot.timeLeft < 3 && snapshot.mode === GAME_MODES.PLAYING;
       metrics.time.innerHTML = `${snapshot.timeLeft.toFixed(1)}<span style="font-size:12px;margin-left:3px">s</span>`;
-      metrics.time.style.color = snapshot.timeLeft < 3 && snapshot.mode === GAME_MODES.PLAYING ? '#ff79af' : '#f0f5ff';
+      metrics.time.style.color = urgent ? '' : '#f0f5ff';
+      metrics.time.classList.toggle('urgent', urgent);
       metrics.score.textContent = String(snapshot.score).padStart(4, '0');
       metrics.best.textContent = String(snapshot.best).padStart(2, '0');
       showDialog(snapshot);
