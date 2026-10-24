@@ -5,6 +5,9 @@ const MOVEMENT_KEYS = new Set([
   'w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'
 ]);
 
+// contracts 目前没有 CLEAR 常量（通关走 PREP），这里做字面量兜底，避免未来新增 clear 阶段时静默走错分支。
+const CLEAR_MODE = GAME_MODES.CLEAR || 'clear';
+
 export function createInterface({ canvas, onAction, getMode }) {
   const element = (id) => document.getElementById(id);
   const overlay = element('overlay');
@@ -20,6 +23,9 @@ export function createInterface({ canvas, onAction, getMode }) {
   let renderedDialogKey = '';
   let pendingSkill = null;
   let skills = [];
+
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
 
   function setModal({ icon, tag, title, description, button, note, rules = [] }) {
     element('dialogIcon').textContent = icon;
@@ -39,10 +45,12 @@ export function createInterface({ canvas, onAction, getMode }) {
     if (snapshot.mode === GAME_MODES.PLAYING || snapshot.mode === GAME_MODES.PREP) {
       overlay.classList.add('hidden');
       overlay.classList.remove('mode-menu', 'mode-clear', 'mode-over');
+      overlay.setAttribute('aria-hidden', 'true');
       return;
     }
 
     overlay.classList.remove('hidden');
+    overlay.setAttribute('aria-hidden', 'false');
 
     if (snapshot.mode === GAME_MODES.MENU) {
       overlay.classList.add('mode-menu');
@@ -51,23 +59,23 @@ export function createInterface({ canvas, onAction, getMode }) {
         icon: '👻',
         tag: 'A GAME ABOUT YOUR PAST',
         title: '十秒后，你将成为敌人。',
-        description: '每关只有 <strong>10 秒</strong>。收集至少 <strong>3 颗星星</strong>，就能进入下一关。<br />多吃的第 <strong>4、5 颗星星</strong>会换成<strong>积分</strong>（最多 9 分），在关卡间的<strong>准备阶段</strong>购买技能。<br />🧲 磁铁 3 分 · 🕊 原谅 4 分 · 🛡 免死 5 分。',
+        description: '每关只有 <strong>10 秒</strong>，收集 <strong>3 颗星星</strong>即可进入下一关。<br />多吃的星星会换成<strong>积分</strong>，在关卡间购买技能。<br />你走过的路线，下一关会变成<strong>追杀你的自己</strong>。',
         button: '开始游戏 →',
-        note: '鼠标移动 / WASD / 方向键 · 准备阶段按 1·2·3 购买 · 手机上拖动手指',
-        rules: ['✦ 收集 3 / 5 颗星星', '✨ 4·5 星 → 积分（上限 9）', '👻 躲避历史幽灵']
+        note: '鼠标移动 / WASD / 方向键 · 准备阶段按 1·2·3 购买 · 手机上按住拖动',
+        rules: ['✦ 收集 3 / 5 颗星星', '✨ 4·5 星 → 积分', '👻 躲避历史幽灵']
       });
       return;
     }
 
-    const outcome = snapshot.outcome;
-    if (snapshot.mode === GAME_MODES.CLEAR) {
+    const outcome = snapshot.outcome || {};
+    if (snapshot.mode === CLEAR_MODE) {
       overlay.classList.add('mode-clear');
       overlay.classList.remove('mode-menu', 'mode-over');
       setModal({
         icon: '✨',
         tag: 'LEVEL CLEAR · TIME LOOP ACTIVATED',
         title: `第 ${outcome.finishedLevel} 关成功！`,
-        description: `你拿到了 <strong>${outcome.coinsGot} / 5</strong> 颗星星！下一关，<strong>第 ${outcome.finishedLevel} 关的你</strong>将加入追杀。<br>你刚才走过的每一步，都可能成为新的危险。`,
+        description: `你拿到了 <strong>${outcome.coinsGot} / 5</strong> 颗星星！下一关，<strong>第 ${outcome.finishedLevel} 关的你</strong>将加入追杀。`,
         button: `进入第 ${outcome.nextLevel} 关 →`,
         note: '提示：可以刻意规划路线，给未来的自己留活路。',
         rules: [`🪙 本关 ${outcome.coinsGot} 颗`, `👻 下关 ${outcome.ghostCount} 个幽灵`, `✦ 累计 ${outcome.score} 分`]
@@ -76,18 +84,22 @@ export function createInterface({ canvas, onAction, getMode }) {
     }
 
     const hitGhost = outcome.reason === 'ghost';
-    const title = hitGhost ? `被第 ${outcome.sourceLevel} 关的自己干掉了！` : '时间到了，星星没拿够！';
-    const roast = hitGhost ? '系统评价：建议少和过去的自己来往。' : '系统评价：你的人生，还差几颗星星。';
+    const roast = hitGhost
+      ? '系统评价：建议少和过去的自己来往。'
+      : '系统评价：你的人生，还差几颗星星。';
+    const cause = hitGhost
+      ? `被 <strong>第 ${outcome.sourceLevel} 关</strong>的自己干掉了！`
+      : '时间到了，星星没拿够！';
     overlay.classList.add('mode-over');
     overlay.classList.remove('mode-menu', 'mode-clear');
     setModal({
       icon: hitGhost ? '💀' : '⏰',
       tag: 'GAME OVER · YOUR PAST WON',
       title: hitGhost ? '小丑竟是我自己！' : '再快一点点！',
-      description: `<strong>${title}</strong><br>${roast}<br>这次闯到了 <strong>第 ${outcome.level} 关</strong>，共获得 <strong>${outcome.score} 分</strong>。`,
-      button: '我不服！再来一局 ↻',
-      note: '每次重新开局，都会生成一条全新的时间线。',
-      rules: [`🏁 到达第 ${outcome.level} 关`, `⭐ 得分 ${outcome.score}`, `🏆 历史最佳 ${outcome.best} 关`]
+      description: `${cause}<br><span class="roast">${roast}</span><br>这次闯到了 <strong>第 ${outcome.level} 关</strong>，共获得 <strong>${outcome.score} 分</strong>。`,
+      button: '我不服！再来一局！',
+      note: `🏆 历史最高：第 ${outcome.best} 关 · 每次重开都会生成一条全新的时间线。`,
+      rules: [`🏁 到达第 ${outcome.level} 关`, `⭐ 得分 ${outcome.score}`, `🏆 最佳 ${outcome.best} 关`]
     });
   }
 
@@ -175,9 +187,11 @@ export function createInterface({ canvas, onAction, getMode }) {
     },
     update(snapshot) {
       skills = snapshot.skills || [];
+      // 供 CSS 按阶段切换视觉（不修改 HTML 结构）
+      document.body.dataset.mode = snapshot.mode;
       metrics.level.textContent = String(snapshot.level).padStart(2, '0');
       const urgent = snapshot.timeLeft < 3 && snapshot.mode === GAME_MODES.PLAYING;
-      metrics.time.innerHTML = `${snapshot.timeLeft.toFixed(1)}<span style="font-size:12px;margin-left:3px">s</span>`;
+      metrics.time.textContent = snapshot.timeLeft.toFixed(1);
       metrics.time.style.color = urgent ? '' : '#f0f5ff';
       metrics.time.classList.toggle('urgent', urgent);
       metrics.score.textContent = String(snapshot.score).padStart(4, '0');
