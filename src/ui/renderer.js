@@ -79,6 +79,354 @@ export function createRenderer(canvas, context) {
     img.src = HERO_SHEET_URL;
   }
 
+  /* ------------------------------------------------------------------ *
+   * 游戏内 / 结算背景：赛博朋克雨夜街道（程序化预渲染）
+   *
+   * 只在初始化时构建一次 → 每帧成本 = 1 次 drawImage + 1 条雨丝路径，
+   * 低端设备也能稳定帧率；且不依赖任何外部背景图。
+   * Node / 无 DOM 环境返回 null，drawBackdrop 自动回退到渐变底色
+   * （单元测试走的正是这条兜底路径）。
+   * ------------------------------------------------------------------ */
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function next() {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // 霓虹主色（与参考图一致的品红 / 青 / 紫 / 暖金）
+  const NEON = ['255,45,149', '0,229,255', '168,85,247', '255,176,58'];
+  const HORIZON = arena.y + 16; // 街道远端（透视消失点高度）
+
+  function pathRoundRect(g, x, y, width, height, radius) {
+    g.beginPath();
+    if (typeof g.roundRect === 'function') {
+      g.roundRect(x, y, width, height, radius);
+      return;
+    }
+    g.rect(x, y, width, height);
+  }
+
+  function buildArenaBackdrop() {
+    if (typeof document === 'undefined' || typeof document.createElement !== 'function') return null;
+    let surface;
+    try {
+      surface = document.createElement('canvas');
+      surface.width = canvasWidth;
+      surface.height = canvasHeight;
+    } catch {
+      return null;
+    }
+    const g = surface.getContext('2d');
+    if (!g) return null;
+    const rnd = mulberry32(0x51ce7a11);
+
+    // 1) 夜空：近黑深蓝 → 街道远端霓虹 → 路面压暗（暗部要够黑，霓虹才跳得出来）
+    const sky = g.createLinearGradient(0, 0, 0, canvasHeight);
+    sky.addColorStop(0, '#03040c');
+    sky.addColorStop(0.18, '#06071a');
+    sky.addColorStop(0.33, '#0b0a24');
+    sky.addColorStop(0.437, '#150a2c');
+    sky.addColorStop(0.50, '#080714');
+    sky.addColorStop(0.74, '#070610');
+    sky.addColorStop(1, '#04030a');
+    g.fillStyle = sky;
+    g.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // 2) 远端霓虹雾带：只压在街道尽头附近，避免整屏泛紫
+    const band = g.createLinearGradient(0, HORIZON - 120, 0, HORIZON + 170);
+    band.addColorStop(0, 'rgba(255,45,149,0)');
+    band.addColorStop(0.38, 'rgba(255,45,149,.16)');
+    band.addColorStop(0.52, 'rgba(0,190,255,.09)');
+    band.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = band;
+    g.fillRect(0, HORIZON - 120, canvasWidth, 290);
+
+    // 2b) 远处霓虹光斑：给出明确的“光源感”，而不是一层平均的雾
+    for (let i = 0; i < 14; i += 1) {
+      const rgb = NEON[Math.floor(rnd() * NEON.length)];
+      const cx = rnd() * canvasWidth;
+      const cy = HORIZON - 8 - rnd() * 36;
+      const radius = 26 + rnd() * 72;
+      const spot = g.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      spot.addColorStop(0, `rgba(${rgb},${(0.30 + rnd() * 0.24).toFixed(3)})`);
+      spot.addColorStop(0.45, `rgba(${rgb},${(0.10 + rnd() * 0.10).toFixed(3)})`);
+      spot.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = spot;
+      g.beginPath();
+      g.arc(cx, cy, radius, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    // 3) 远端楼群剪影 + 窗灯
+    let bx = -24;
+    while (bx < canvasWidth + 40) {
+      const bw = 30 + rnd() * 64;
+      const bh = 22 + rnd() * 58;
+      const top = HORIZON - bh;
+      g.fillStyle = 'rgba(3,3,9,.96)';
+      g.fillRect(bx, top, bw, bh + 10);
+      const cols = Math.max(1, Math.round(bw / 13));
+      const rows = Math.max(1, Math.round(bh / 13));
+      for (let c = 0; c < cols; c += 1) {
+        for (let r = 0; r < rows; r += 1) {
+          if (rnd() > 0.42) continue;
+          const rgb = NEON[Math.floor(rnd() * NEON.length)];
+          g.fillStyle = `rgba(${rgb},${(0.35 + rnd() * 0.55).toFixed(3)})`;
+          g.fillRect(bx + 4 + c * 13, top + 5 + r * 13, 3, 4);
+        }
+      }
+      bx += bw + 3 + rnd() * 9;
+    }
+
+    // 4) 两侧霓虹牌匾：竖向灯条 + 灯箱，主要出现在左右留白里，营造“霓虹峡谷”
+    for (let side = 0; side < 2; side += 1) {
+      for (let i = 0; i < 4; i += 1) {
+        const rgb = NEON[Math.floor(rnd() * NEON.length)];
+        const barW = 6 + rnd() * 11;
+        const barH = 50 + rnd() * 120;
+        const left = side === 0 ? 3 + rnd() * 24 : canvasWidth - 30 - rnd() * 18;
+        const top = 2 + rnd() * 200;
+        g.save();
+        g.shadowColor = `rgba(${rgb},.95)`;
+        g.shadowBlur = 34;
+        g.fillStyle = `rgba(${rgb},.72)`;
+        g.fillRect(left, top, barW, barH);
+        g.shadowBlur = 12;
+        g.fillStyle = 'rgba(255,255,255,.72)';
+        g.fillRect(left + barW * 0.34, top + 5, Math.max(1.4, barW * 0.18), barH - 10);
+        g.restore();
+      }
+
+      // 灯箱：细边框 + 内部横向灯条，远看像街边招牌
+      const boxW = 24 + rnd() * 10;
+      const boxH = 60 + rnd() * 70;
+      const boxX = side === 0 ? 2 : canvasWidth - boxW - 2;
+      const boxY = 30 + rnd() * 150;
+      const boxRgb = NEON[Math.floor(rnd() * NEON.length)];
+      g.save();
+      g.shadowColor = `rgba(${boxRgb},.85)`;
+      g.shadowBlur = 22;
+      g.strokeStyle = `rgba(${boxRgb},.8)`;
+      g.lineWidth = 2;
+      g.strokeRect(boxX, boxY, boxW, boxH);
+      g.shadowBlur = 0;
+      g.fillStyle = `rgba(${boxRgb},.18)`;
+      g.fillRect(boxX, boxY, boxW, boxH);
+      g.fillStyle = `rgba(${boxRgb},.85)`;
+      for (let k = 0; k < 4; k += 1) {
+        const lineY = boxY + 12 + k * ((boxH - 24) / 4);
+        g.fillRect(boxX + 5, lineY, boxW - 10, 2);
+      }
+      g.restore();
+    }
+
+    // 5) 湿地反光：只贴在左右两侧招牌下方（窄、短、锐利），中间留黑
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 16; i += 1) {
+      const onLeft = i % 2 === 0;
+      const rgb = NEON[Math.floor(rnd() * NEON.length)];
+      const cx = onLeft ? rnd() * 130 : canvasWidth - rnd() * 130;
+      const colW = 5 + rnd() * 16;
+      const top = HORIZON + rnd() * 10;
+      const len = 70 + rnd() * 150;
+      const grad = g.createLinearGradient(0, top, 0, top + len);
+      grad.addColorStop(0, `rgba(${rgb},${(0.18 + rnd() * 0.14).toFixed(3)})`);
+      grad.addColorStop(0.35, `rgba(${rgb},${(0.05 + rnd() * 0.05).toFixed(3)})`);
+      grad.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = grad;
+      g.fillRect(cx - colW / 2, top, colW, len);
+    }
+
+    // 街道尽头的地平线光带：给纵深一个明确锚点
+    const horizonLine = g.createLinearGradient(0, HORIZON - 14, 0, HORIZON + 26);
+    horizonLine.addColorStop(0, 'rgba(0,229,255,0)');
+    horizonLine.addColorStop(0.42, 'rgba(150,235,255,.18)');
+    horizonLine.addColorStop(0.6, 'rgba(255,45,149,.10)');
+    horizonLine.addColorStop(1, 'rgba(255,45,149,0)');
+    g.fillStyle = horizonLine;
+    g.fillRect(0, HORIZON - 14, canvasWidth, 40);
+
+    // 湿路面横向反光带（细、稀疏、只在近地平线一侧）
+    for (let i = 0; i < 9; i += 1) {
+      const ly = HORIZON + 24 + rnd() * 150;
+      const lx = rnd() * canvasWidth;
+      const lw = 60 + rnd() * 200;
+      const lh = 1 + rnd() * 2;
+      g.fillStyle = `rgba(190,230,255,${(0.03 + rnd() * 0.05).toFixed(3)})`;
+      g.fillRect(lx - lw / 2, ly, lw, lh);
+    }
+    g.restore();
+
+    // 6) 中央极淡暖光：给大块死黑一点表面积光，但绝不做成"雾"
+    const floorGlow = g.createRadialGradient(
+      canvasWidth * 0.5, canvasHeight * 0.66, 20,
+      canvasWidth * 0.5, canvasHeight * 0.66, 400
+    );
+    floorGlow.addColorStop(0, 'rgba(255,70,150,.075)');
+    floorGlow.addColorStop(0.55, 'rgba(120,60,180,.045)');
+    floorGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = floorGlow;
+    g.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // 7) 水洼：清晰的湿面边界 + 霓虹倒影，而不是一团灰雾
+    g.save();
+    for (let i = 0; i < 5; i += 1) {
+      const px = 90 + rnd() * (canvasWidth - 180);
+      const py = HORIZON + 80 + rnd() * (canvasHeight - HORIZON - 120);
+      const rw = 26 + rnd() * 58;
+      const rh = rw * (0.24 + rnd() * 0.12);
+      g.fillStyle = 'rgba(9,12,26,.30)';
+      g.beginPath();
+      g.ellipse(px, py, rw, rh, 0, 0, Math.PI * 2);
+      g.fill();
+
+      const rgb = NEON[Math.floor(rnd() * NEON.length)];
+      g.strokeStyle = `rgba(${rgb},.14)`;
+      g.lineWidth = 1;
+      g.stroke();
+    }
+
+    // 雨滴涟漪：小而淡，只做氛围
+    for (let i = 0; i < 14; i += 1) {
+      const px = rnd() * canvasWidth;
+      const py = HORIZON + 20 + rnd() * (canvasHeight - HORIZON - 40);
+      const rr = 4 + rnd() * 8;
+      g.strokeStyle = `rgba(180,230,255,${(0.04 + rnd() * 0.04).toFixed(3)})`;
+      g.lineWidth = 1;
+      g.beginPath();
+      g.ellipse(px, py, rr, rr * 0.42, 0, 0, Math.PI * 2);
+      g.stroke();
+    }
+
+    // 横向霓虹光带：招牌在湿地面上的拖影
+    for (let i = 0; i < 6; i += 1) {
+      const rgb = NEON[Math.floor(rnd() * NEON.length)];
+      const ly = HORIZON + 40 + rnd() * (canvasHeight - HORIZON - 90);
+      const lw = 180 + rnd() * 340;
+      const lx = rnd() * canvasWidth;
+      const lh = 6 + rnd() * 12;
+      const bandGrad = g.createLinearGradient(lx - lw / 2, 0, lx + lw / 2, 0);
+      bandGrad.addColorStop(0, `rgba(${rgb},0)`);
+      bandGrad.addColorStop(0.5, `rgba(${rgb},${(0.08 + rnd() * 0.06).toFixed(3)})`);
+      bandGrad.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = bandGrad;
+      g.fillRect(lx - lw / 2, ly, lw, lh);
+    }
+    g.restore();
+
+    // 7b) 地面霓虹环：参考图里那圈发光地标。纯装饰，不参与碰撞，也不暗示边界
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    const ringCx = canvasWidth * 0.5;
+    const ringCy = canvasHeight * 0.72;
+    g.shadowColor = 'rgba(255,45,149,.9)';
+    g.shadowBlur = 30;
+    g.strokeStyle = 'rgba(255,45,149,.28)';
+    g.lineWidth = 2.5;
+    g.beginPath();
+    g.ellipse(ringCx, ringCy, 402, 96, 0, 0, Math.PI * 2);
+    g.stroke();
+    g.strokeStyle = 'rgba(0,229,255,.16)';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.ellipse(ringCx, ringCy - 6, 318, 74, 0, 0, Math.PI * 2);
+    g.stroke();
+    g.restore();
+
+    // 8) 压暗：整体压一层薄暗，中间略重（玩法集中在中央），但别把霓虹糊掉
+    const centerShade = g.createRadialGradient(
+      canvasWidth * 0.5, canvasHeight * 0.52, 60,
+      canvasWidth * 0.5, canvasHeight * 0.52, canvasWidth * 0.72
+    );
+    centerShade.addColorStop(0, 'rgba(6,4,15,.22)');
+    centerShade.addColorStop(0.55, 'rgba(6,4,15,.18)');
+    centerShade.addColorStop(1, 'rgba(5,3,12,.10)');
+    g.fillStyle = centerShade;
+    g.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // 8b) 场地环在地面上的漫反射：环把湿地面照亮的那一圈（甜甜圈形光晕）
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    const ringGlow = g.createRadialGradient(
+      canvasWidth * 0.5, canvasHeight * 0.54, 90,
+      canvasWidth * 0.5, canvasHeight * 0.54, 470
+    );
+    ringGlow.addColorStop(0, 'rgba(255,45,149,0)');
+    ringGlow.addColorStop(0.7, 'rgba(255,45,149,.04)');
+    ringGlow.addColorStop(0.86, 'rgba(255,80,170,.11)');
+    ringGlow.addColorStop(1, 'rgba(255,45,149,0)');
+    g.fillStyle = ringGlow;
+    g.fillRect(0, 0, canvasWidth, canvasHeight);
+    g.restore();
+
+    // 9) 场地霓虹环：静态辉光（逐帧只再描一层细线做呼吸，避免每帧 shadowBlur）
+    g.save();
+    g.shadowColor = 'rgba(255,45,149,1)';
+    g.shadowBlur = 58;
+    g.strokeStyle = 'rgba(255,45,149,.34)';
+    g.lineWidth = 12;
+    pathRoundRect(g, arena.x, arena.y, arena.w, arena.h, 22);
+    g.stroke();
+
+    g.shadowBlur = 30;
+    g.strokeStyle = 'rgba(255,90,180,.72)';
+    g.lineWidth = 3.5;
+    pathRoundRect(g, arena.x, arena.y, arena.w, arena.h, 20);
+    g.stroke();
+
+    g.shadowColor = 'rgba(0,229,255,1)';
+    g.shadowBlur = 20;
+    g.strokeStyle = 'rgba(0,229,255,.55)';
+    g.lineWidth = 2;
+    pathRoundRect(g, arena.x + 8, arena.y + 8, arena.w - 16, arena.h - 16, 15);
+    g.stroke();
+    g.restore();
+
+    return surface;
+  }
+
+  const arenaBackdrop = buildArenaBackdrop();
+
+  /* 雨丝：位置解析式计算（不累积误差），整屏一次 path 一次 stroke */
+  const rainDrops = [];
+  {
+    const rainRnd = mulberry32(0x2f9d1c33);
+    const count = reduceMotion ? 34 : 68;
+    for (let i = 0; i < count; i += 1) {
+      rainDrops.push({
+        x: rainRnd() * (canvasWidth + 200) - 100,
+        y: rainRnd() * canvasHeight,
+        len: 9 + rainRnd() * 20,
+        speed: reduceMotion ? 0 : 300 + rainRnd() * 420
+      });
+    }
+  }
+  let rainTime = 0;
+
+  function drawRain(deltaSeconds) {
+    if (!rainDrops.length) return;
+    if (!reduceMotion) rainTime += deltaSeconds || 0;
+    const span = canvasHeight + 140;
+    const drift = 0.13;
+    context.save();
+    context.strokeStyle = 'rgba(176,220,255,.085)';
+    context.lineWidth = 1;
+    context.beginPath();
+    for (const drop of rainDrops) {
+      const y = (((drop.y + rainTime * drop.speed) % span) + span) % span - 70;
+      const x = drop.x - y * drift;
+      context.moveTo(x, y);
+      context.lineTo(x - drop.len * drift, y + drop.len);
+    }
+    context.stroke();
+    context.restore();
+  }
+
   function random(min, max) {
     return min + Math.random() * (max - min);
   }
@@ -228,37 +576,31 @@ export function createRenderer(canvas, context) {
     return vignetteGrad;
   }
 
-  function drawBackdrop() {
-    context.fillStyle = getBackdropGradient();
-    context.fillRect(0, 0, canvasWidth, canvasHeight);
+  function drawBackdrop(deltaSeconds, time) {
+    // 游戏内 / 结算背景：赛博朋克雨夜街道
+    if (arenaBackdrop) {
+      context.drawImage(arenaBackdrop, 0, 0);
+      drawRain(deltaSeconds);
 
-    context.save();
-    context.beginPath();
-    context.rect(arena.x, arena.y, arena.w, arena.h);
-    context.clip();
-    context.strokeStyle = 'rgba(170,150,210,.10)';
-    context.lineWidth = 1;
-    for (let x = arena.x + 30; x < arena.x + arena.w; x += 42) {
-      context.beginPath();
-      context.moveTo(x, arena.y);
-      context.lineTo(x, arena.y + arena.h);
-      context.stroke();
+      // 场地霓虹环：逐帧细线描边，成本极低地做出“呼吸”感
+      const pulse = reduceMotion ? 1 : 0.74 + Math.sin((time || 0) / 820) * 0.26;
+      roundRect(arena.x, arena.y, arena.w, arena.h, 20, null,
+        `rgba(255,45,149,${(0.40 * pulse).toFixed(3)})`, 2);
+      roundRect(arena.x + 7, arena.y + 7, arena.w - 14, arena.h - 14, 15, null,
+        `rgba(0,229,255,${(0.28 * pulse).toFixed(3)})`, 1.5);
+    } else {
+      // Node / 无 DOM / 构建失败时的兜底：渐变底色
+      context.fillStyle = getBackdropGradient();
+      context.fillRect(0, 0, canvasWidth, canvasHeight);
     }
-    for (let y = arena.y + 30; y < arena.y + arena.h; y += 42) {
-      context.beginPath();
-      context.moveTo(arena.x, y);
-      context.lineTo(arena.x + arena.w, y);
-      context.stroke();
-    }
-    context.restore();
 
     context.fillStyle = getVignetteGradient();
     context.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    roundRect(arena.x, arena.y, arena.w, arena.h, 16, null, 'rgba(150,200,255,.28)');
-    context.strokeStyle = 'rgba(150,200,255,.32)';
+    // 四角霓虹描边：这是“场地边界”的最终视觉锚点，保持锐利
+    context.strokeStyle = 'rgba(120,235,255,.34)';
     context.lineWidth = 2;
-    const corner = 24;
+    const corner = 26;
     const corners = [
       [arena.x, arena.y, 1, 1],
       [arena.x + arena.w, arena.y, -1, 1],
@@ -268,8 +610,8 @@ export function createRenderer(canvas, context) {
     for (const [x, y, sx, sy] of corners) {
       context.beginPath();
       context.moveTo(x + sx * corner, y);
-      context.lineTo(x + sx * 8, y);
-      context.quadraticCurveTo(x, y, x, y + sy * 8);
+      context.lineTo(x + sx * 9, y);
+      context.quadraticCurveTo(x, y, x, y + sy * 9);
       context.lineTo(x, y + sy * corner);
       context.stroke();
     }
@@ -871,7 +1213,7 @@ export function createRenderer(canvas, context) {
 
       const anim = updateAnimation(snapshot, deltaSeconds);
 
-      drawBackdrop();
+      drawBackdrop(deltaSeconds, time);
       if (snapshot.mode === GAME_MODES.PREP) {
         drawPrepPreview(snapshot);
         drawPrepPanel(snapshot, time);

@@ -257,6 +257,15 @@ canvas {
 }
 .overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
+/* 失败结算：压暗但保留赛博街道的霓虹，让背景继续“在场” */
+.overlay.mode-over {
+  background:
+    radial-gradient(ellipse 84% 66% at 50% 48%, rgba(255, 45, 149, .12), rgba(0, 0, 0, 0) 72%),
+    rgba(8, 6, 18, .50);
+  backdrop-filter: blur(3px) saturate(1.08);
+  -webkit-backdrop-filter: blur(3px) saturate(1.08);
+}
+
 .dialog {
   width: min(500px, 100%);
   max-height: 100%;
@@ -615,4 +624,230 @@ button:focus-visible,
 a:focus-visible {
   outline: 3px solid rgba(85, 239, 217, .55);
   outline-offset: 3px;
+}
+
+/* ============================================================
+   全屏封面 + 赛博朋克开始按钮 + 倒数
+   （封面 DOM 由 interface.js 注入，不改 index.html 结构）
+   ============================================================ */
+
+body.cover-active { overflow: hidden; }
+
+.cover-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse 62% 52% at 50% 40%,
+      rgba(8, 6, 20, 0.02) 40%, rgba(8, 6, 20, 0.5) 76%, rgba(5, 3, 12, 0.9) 100%),
+    url('../../assets/cover/cover.jpg') center / cover no-repeat,
+    #07050f;
+  opacity: 1;
+  transition: opacity .5s ease, visibility .5s ease;
+  overflow: hidden;
+}
+.cover-screen.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* 按钮背后的霓虹光晕 */
+.cover-screen__aura {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  width: 520px;
+  height: 260px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center,
+    rgba(0, 240, 255, .22), rgba(255, 0, 170, .12) 46%, transparent 72%);
+  filter: blur(18px);
+  pointer-events: none;
+  animation: auraBreathe 3.6s ease-in-out infinite;
+}
+@keyframes auraBreathe {
+  0%, 100% { opacity: .55; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: .9; transform: translate(-50%, -50%) scale(1.08); }
+}
+
+/* 扫描线质感（很淡，不抢戏） */
+.cover-screen__scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, .03) 0px,
+    rgba(255, 255, 255, .03) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  mix-blend-mode: overlay;
+  opacity: .5;
+}
+
+.cover-screen__content {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  width: min(92vw, 440px);
+  text-align: center;
+}
+
+.cover-screen__hint {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: .08em;
+  color: rgba(200, 225, 255, .82);
+  text-shadow: 0 0 10px rgba(0, 200, 255, .4);
+}
+
+/* —— 赛博朋克开始按钮 —— */
+.cyber-start {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 236px;
+  padding: 17px 44px;
+  border: 2px solid rgba(0, 232, 255, .85);
+  background: linear-gradient(135deg, rgba(9, 20, 34, .93), rgba(22, 6, 36, .93));
+  color: #eafcff;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: .22em;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow:
+    0 0 18px rgba(0, 232, 255, .5),
+    0 0 46px rgba(255, 0, 170, .32),
+    inset 0 0 24px rgba(0, 232, 255, .12);
+  transition: transform .14s ease, box-shadow .2s ease, filter .2s ease, opacity .3s ease;
+  animation: cyberPulse 2.6s ease-in-out infinite;
+}
+.cyber-start::before,
+.cyber-start::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  border-color: #7df9ff;
+  border-style: solid;
+}
+.cyber-start::before { top: 3px; left: 3px; border-width: 2px 0 0 2px; }
+.cyber-start::after { bottom: 3px; right: 3px; border-width: 0 2px 2px 0; }
+
+.cyber-start__label {
+  background: linear-gradient(90deg, #7df9ff, #b28bff 46%, #ff6ad5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 18px rgba(125, 249, 255, .3);
+}
+.cyber-start__hint {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .3em;
+  color: rgba(140, 230, 255, .65);
+}
+.cyber-start__border {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg,
+    transparent 42%, rgba(255, 255, 255, .45) 50%, transparent 58%);
+  background-size: 220% 100%;
+  background-position: 120% 0;
+  animation: cyberSweep 3s ease-in-out infinite;
+  opacity: .55;
+}
+.cyber-start:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 0 26px rgba(0, 232, 255, .7),
+    0 0 60px rgba(255, 0, 170, .46),
+    inset 0 0 24px rgba(0, 232, 255, .16);
+  filter: brightness(1.08);
+}
+.cyber-start:active { transform: translateY(0) scale(.985); }
+.cyber-start:focus-visible { outline: 3px solid rgba(125, 249, 255, .85); outline-offset: 4px; }
+.cyber-start.is-running { opacity: 0; pointer-events: none; animation: none; }
+.cyber-start:disabled { cursor: default; }
+
+@keyframes cyberPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 16px rgba(0, 232, 255, .42),
+      0 0 38px rgba(255, 0, 170, .26),
+      inset 0 0 22px rgba(0, 232, 255, .12);
+  }
+  50% {
+    box-shadow:
+      0 0 26px rgba(0, 232, 255, .68),
+      0 0 58px rgba(255, 0, 170, .44),
+      inset 0 0 26px rgba(0, 232, 255, .18);
+  }
+}
+@keyframes cyberSweep {
+  0% { background-position: 120% 0; }
+  55%, 100% { background-position: -40% 0; }
+}
+
+/* —— 倒数数字 —— */
+.cover-countdown {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(90px, 22vw, 180px);
+  font-weight: 900;
+  color: #eafcff;
+  text-shadow:
+    0 0 18px rgba(125, 249, 255, .9),
+    0 0 46px rgba(0, 232, 255, .6),
+    0 0 80px rgba(255, 0, 170, .5);
+  pointer-events: none;
+  opacity: 0;
+  font-variant-numeric: tabular-nums;
+}
+.cover-countdown.pop { animation: countPop 1s cubic-bezier(.2, .8, .2, 1) forwards; }
+@keyframes countPop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); filter: blur(6px); }
+  22% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(.82); }
+}
+
+/* 手机：整体略上移，按钮缩小 */
+@media (max-width: 640px) {
+  .cover-screen__content { top: 58%; gap: 12px; }
+  .cover-screen__aura { top: 58%; width: 360px; height: 200px; }
+  .cyber-start { min-width: 200px; padding: 15px 32px; font-size: 19px; letter-spacing: .18em; }
+  .cover-screen__hint { font-size: 11px; }
+  .cover-countdown { top: 58%; }
+}
+
+/* 横屏：略上移 */
+@media (max-height: 540px) and (orientation: landscape) {
+  .cover-screen__content { top: 56%; }
+  .cover-screen__aura { top: 56%; }
+  .cover-countdown { top: 56%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover-screen__aura,
+  .cyber-start,
+  .cyber-start__border { animation: none !important; }
+  .cover-countdown.pop { animation: none; opacity: 1; }
+  .cover-screen { transition: none !important; }
+  .cyber-start { transition: none !important; }
 }

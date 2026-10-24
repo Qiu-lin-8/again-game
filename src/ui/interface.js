@@ -27,6 +27,90 @@ export function createInterface({ canvas, onAction, getMode }) {
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
 
+  /* ------------------------------------------------------------------ *
+   * 全屏封面 + 倒数进入
+   * 进入网页先看到封面大图，正中间是赛博朋克风格「开始游戏」按钮；
+   * 点击后倒数 3 → 2 → 1，再正式进入游戏（MENU → PLAYING）。
+   * 封面 DOM 由 JS 注入，不改动 index.html 结构（避开与成员 B 的冲突）。
+   * ------------------------------------------------------------------ */
+  const COVER_COUNT_FROM = 3;
+  let coverActive = true;
+  let coverStarting = false;
+  let coverTimer = null;
+
+  function mountCover() {
+    if (typeof document === 'undefined' || !document.body) return;
+    if (document.getElementById('coverScreen')) return;
+    const cover = document.createElement('div');
+    cover.id = 'coverScreen';
+    cover.className = 'cover-screen';
+    cover.setAttribute('role', 'dialog');
+    cover.setAttribute('aria-modal', 'true');
+    cover.setAttribute('aria-label', '开始游戏');
+    cover.innerHTML = [
+      '<div class="cover-screen__aura" aria-hidden="true"></div>',
+      '<div class="cover-screen__scan" aria-hidden="true"></div>',
+      '<div class="cover-screen__content">',
+      '  <button class="cyber-start" id="coverStart" type="button" aria-label="开始游戏">',
+      '    <span class="cyber-start__border" aria-hidden="true"></span>',
+      '    <span class="cyber-start__label">开始游戏</span>',
+      '    <span class="cyber-start__hint">CLICK / ENTER</span>',
+      '  </button>',
+      '  <p class="cover-screen__hint">10 秒一局 · 收集 3 颗星星 · 躲避上一局的自己</p>',
+      '</div>',
+      '<div class="cover-countdown" id="coverCountdown" aria-live="assertive" aria-hidden="true"></div>'
+    ].join('');
+    document.body.appendChild(cover);
+    document.body.classList.add('cover-active');
+
+    const startButton = cover.querySelector('#coverStart');
+    if (startButton) {
+      startButton.addEventListener('click', beginCoverCountdown);
+      try { startButton.focus({ preventScroll: true }); } catch { /* 焦点失败不致命 */ }
+    }
+  }
+
+  function beginCoverCountdown() {
+    if (!coverActive || coverStarting) return;
+    coverStarting = true;
+    const startButton = document.getElementById('coverStart');
+    const countdown = document.getElementById('coverCountdown');
+    if (startButton) { startButton.disabled = true; startButton.classList.add('is-running'); }
+    let n = COVER_COUNT_FROM;
+    const showNumber = () => {
+      if (!countdown) return;
+      countdown.setAttribute('aria-hidden', 'false');
+      countdown.textContent = String(n);
+      countdown.classList.remove('pop');
+      void countdown.offsetWidth; // 强制重排以重启动画
+      countdown.classList.add('pop');
+    };
+    const tick = () => {
+      showNumber();
+      if (n > 1) {
+        n -= 1;
+        coverTimer = window.setTimeout(tick, 1000);
+      } else {
+        coverTimer = window.setTimeout(finishCover, 1000);
+      }
+    };
+    tick();
+  }
+
+  function finishCover() {
+    if (coverTimer) { window.clearTimeout(coverTimer); coverTimer = null; }
+    coverActive = false;
+    const cover = document.getElementById('coverScreen');
+    const countdown = document.getElementById('coverCountdown');
+    if (countdown) countdown.textContent = '';
+    if (cover) {
+      cover.classList.add('is-hidden');
+      window.setTimeout(() => { cover.style.display = 'none'; }, 540);
+    }
+    document.body.classList.remove('cover-active');
+    onAction(); // 正式开局：MENU → PLAYING
+  }
+
   function setModal({ icon, tag, title, description, button, note, rules = [] }) {
     element('dialogIcon').textContent = icon;
     element('dialogTag').textContent = tag;
@@ -145,6 +229,14 @@ export function createInterface({ canvas, onAction, getMode }) {
 
   window.addEventListener('keydown', (event) => {
     const key = event.key.toLowerCase();
+    // 封面阶段：只允许回车/空格触发开始，屏蔽移动与快捷操作
+    if (coverActive) {
+      if (key === 'enter' || key === ' ') {
+        event.preventDefault();
+        beginCoverCountdown();
+      }
+      return;
+    }
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)) event.preventDefault();
     if (key === 'enter' && getMode() !== GAME_MODES.PLAYING) {
       actionButton.click();
@@ -172,6 +264,8 @@ export function createInterface({ canvas, onAction, getMode }) {
     pointer.active = false;
   });
   actionButton.addEventListener('click', onAction);
+
+  mountCover();
 
   return {
     getInput() {
