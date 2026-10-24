@@ -2,6 +2,7 @@ import { clamp } from '../core/config.js';
 
 export function interpolateTrack(track, time) {
   if (!track || track.length === 0) return null;
+  if (!Number.isFinite(time)) return null;
   if (time <= track[0].t) return { x: track[0].x, y: track[0].y };
 
   const end = track[track.length - 1];
@@ -17,7 +18,12 @@ export function interpolateTrack(track, time) {
 
   const from = track[low];
   const to = track[high];
-  const alpha = clamp((time - from.t) / Math.max(0.0001, to.t - from.t), 0, 1);
+  const span = to.t - from.t;
+  if (span <= 0) return { x: to.x, y: to.y };
+
+  const alpha = clamp((time - from.t) / span, 0, 1);
+  if (alpha === 0) return { x: from.x, y: from.y };
+  if (alpha === 1) return { x: to.x, y: to.y };
   return {
     x: from.x + (to.x - from.x) * alpha,
     y: from.y + (to.y - from.y) * alpha

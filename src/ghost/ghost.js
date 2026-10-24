@@ -36,19 +36,22 @@ export class GhostSystem {
   }
 
   getGhosts(time) {
-    return this.history.map((recording) => {
+    const ghosts = [];
+    for (const recording of this.history) {
       const position = interpolateTrack(recording.track, time);
+      if (!position) continue;
       const trail = [4, 3, 2, 1]
         .map((step) => interpolateTrack(recording.track, Math.max(0, time - step * 0.11)))
         .filter(Boolean);
-      return {
+      ghosts.push({
         id: recording.id,
         sourceLevel: recording.sourceLevel,
         x: position.x,
         y: position.y,
         trail
-      };
-    });
+      });
+    }
+    return ghosts;
   }
 
   get count() {
