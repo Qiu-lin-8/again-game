@@ -4,6 +4,16 @@
 
 这是 AI Coding 游戏黑客松的一天制网页游戏项目。当前版本由原始单文件 Demo 模块化重构而来，保留了原有玩法、计分、视觉风格和鼠标/键盘/触屏操作。
 
+## 团队协作
+
+| 角色 | GitHub ID | 开发分支 | 负责范围 |
+| --- | --- | --- | --- |
+| 成员 A / 集成人 | Qiu-lin-8 | `feature/core` | `src/core/`、`src/main.js` 和公共文件 |
+| 成员 B | EternalAurora123 | `feature/ghost` | `src/ghost/` |
+| 成员 C | wuli-11 | `feature/ui` | `src/ui/` |
+
+功能完成后创建指向 `main` 的 Pull Request，由另一名成员检查并运行后再合并。详细规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ## 运行
 
 需要 Node.js 20.19+ 或 22.12+。
@@ -70,4 +80,4 @@ again-game/
     └── ARCHITECTURE.md
 ```
 
-模块接口与状态字段详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。原始单文件 Demo 保留在父目录，供回归对照，不参与 Vite 构建。
+模块接口与状态字段详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。原始单文件 Demo 仍保留在最初的本地项目目录中，供回归对照，不属于本仓库的构建内容。

@@ -24,6 +24,13 @@ npm install
 npm run dev
 ```
 
+首次提交前确认本仓库使用的 Git 身份：
+
+```bash
+git config user.name "你的 GitHub ID"
+git config user.email "你的 GitHub 邮箱或 noreply 邮箱"
+```
+
 ## 日常提交
 
 开始工作前先同步 `main`：
