@@ -124,3 +124,50 @@ canvas { width: 100%; aspect-ratio: 16 / 9; height: auto; display: block; touch-
   .dialog p { font-size: 9px; }
   .quick-rules { margin: 5px 0 6px; }
 }
+
+.metric-value.urgent {
+  color: #ff5d8f !important;
+  animation: urgentPulse .55s ease-in-out infinite;
+  text-shadow: 0 0 14px rgba(255, 93, 143, .6);
+}
+@keyframes urgentPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+
+.primary {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 46px;
+  animation: buttonPulse 2.4s ease-in-out infinite;
+}
+@keyframes buttonPulse {
+  0%, 100% { box-shadow: 0 7px 24px rgba(85, 239, 217, .2); }
+  50% { box-shadow: 0 7px 34px rgba(85, 239, 217, .42); }
+}
+
+.dialog { animation: dialogPop .22s cubic-bezier(.2, .9, .3, 1.2); }
+@keyframes dialogPop {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to { opacity: 1; transform: none; }
+}
+
+body::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  background:
+    radial-gradient(40% 35% at 20% 30%, rgba(85, 239, 217, .06), transparent 60%),
+    radial-gradient(45% 40% at 80% 70%, rgba(255, 121, 175, .05), transparent 60%);
+  animation: bgDrift 18s ease-in-out infinite alternate;
+}
+@keyframes bgDrift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(2%, 1%, 0) scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary, .metric-value.urgent, .dialog, body::after { animation: none; }
+}
+

@@ -152,8 +152,10 @@ export function createInterface({ canvas, onAction, getMode }) {
     },
     update(snapshot) {
       metrics.level.textContent = String(snapshot.level).padStart(2, '0');
+      const urgent = snapshot.timeLeft < 3 && snapshot.mode === GAME_MODES.PLAYING;
       metrics.time.innerHTML = `${snapshot.timeLeft.toFixed(1)}<span style="font-size:12px;margin-left:3px">s</span>`;
-      metrics.time.style.color = snapshot.timeLeft < 3 && snapshot.mode === GAME_MODES.PLAYING ? '#ff79af' : '#f0f5ff';
+      metrics.time.style.color = urgent ? '' : '#f0f5ff';
+      metrics.time.classList.toggle('urgent', urgent);
       metrics.score.textContent = String(snapshot.score).padStart(4, '0');
       metrics.best.textContent = String(snapshot.best).padStart(2, '0');
       showDialog(snapshot);
