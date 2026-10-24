@@ -11,6 +11,8 @@ export const GAME_CONFIG = Object.freeze({
   ghostRadius: 17,
   gracePeriod: 1.25,
   sampleInterval: 0.045,
+  prepDuration: 5,
+  shieldInvincibility: 1,
   storageKey: 'ghosts-of-me-best'
 });
 

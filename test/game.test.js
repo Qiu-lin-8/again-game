@@ -145,7 +145,7 @@ test('game clears level one, creates a ghost, detects collision, and restarts', 
   game.state.coinsGot = 3;
   advanceSeconds(game, 10.1);
   let snapshot = game.getSnapshot();
-  assert.equal(snapshot.mode, GAME_MODES.CLEAR);
+  assert.equal(snapshot.mode, GAME_MODES.PREP);
   assert.equal(snapshot.best, 2);
   assert.equal(snapshot.ghosts.length, 1);
   assert.equal(storage.values.get('ghosts-of-me-best'), '2');
@@ -196,7 +196,7 @@ test('round completion wins over a collision exactly at the ten-second deadline'
   game.update(0.05, createIdleInput());
 
   const snapshot = game.getSnapshot();
-  assert.equal(snapshot.mode, GAME_MODES.CLEAR);
+  assert.equal(snapshot.mode, GAME_MODES.PREP);
   assert.equal(snapshot.outcome.kind, 'clear');
 });
 
@@ -216,6 +216,10 @@ test('game integrates with only the documented ghost system methods', () => {
   const snapshot = game.getSnapshot();
   assert.equal(snapshot.ghosts.length, 1);
   assert.equal(snapshot.graceLeft, GAME_CONFIG.gracePeriod);
+  assert.equal(snapshot.points, 0);
+  assert.equal(snapshot.pointCap, 0);
+  assert.deepEqual(snapshot.skills, []);
+  assert.deepEqual(snapshot.previewPaths, []);
 });
 
 test('restart resets score, level, ghost history, and outcome after timeout', () => {

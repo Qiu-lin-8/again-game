@@ -327,11 +327,154 @@ export function createRenderer(canvas, context) {
     });
   }
 
+  function drawSkillEffects(snapshot, time) {
+    const player = snapshot.player;
+    const magnet = snapshot.skills?.find((skill) => skill.id === 'magnet');
+    const shield = snapshot.skills?.find((skill) => skill.id === 'shield');
+
+    if (shield?.active) {
+      context.save();
+      context.globalAlpha = 0.55;
+      context.strokeStyle = '#78f1e6';
+      context.lineWidth = 3;
+      context.shadowColor = '#78f1e6';
+      context.shadowBlur = 12;
+      context.beginPath();
+      context.arc(player.x, player.y, 24, 0, Math.PI * 2);
+      context.stroke();
+      context.restore();
+    }
+    if (magnet?.active) {
+      const radius = (GAME_CONFIG.playerRadius + GAME_CONFIG.coinRadius + 2) * 2;
+      const pulse = 1 + Math.sin(time * 0.006) * 0.05;
+      context.save();
+      context.globalAlpha = 0.28;
+      context.strokeStyle = '#ffd26f';
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(player.x, player.y, radius * pulse, 0, Math.PI * 2);
+      context.stroke();
+      context.restore();
+    }
+  }
+
+  function drawPrepPreview(snapshot) {
+    const paths = snapshot.previewPaths || [];
+    context.save();
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    paths.forEach((path, index) => {
+      const newest = index === paths.length - 1;
+      context.globalAlpha = newest ? 0.95 : 0.32;
+      context.strokeStyle = GHOST_COLORS[index % GHOST_COLORS.length];
+      context.lineWidth = newest ? 3 : 2;
+      context.shadowColor = context.strokeStyle;
+      context.shadowBlur = newest ? 10 : 0;
+      context.beginPath();
+      path.points.forEach((point, pointIndex) => {
+        if (pointIndex === 0) context.moveTo(point.x, point.y);
+        else context.lineTo(point.x, point.y);
+      });
+      context.stroke();
+    });
+    context.restore();
+
+    const coins = snapshot.previewCoins || [];
+    context.save();
+    context.globalAlpha = 0.55;
+    for (const coin of coins) {
+      star(coin.x, coin.y, 13.8, 6.7, '#ffd26f', 0);
+    }
+    context.restore();
+  }
+
+  function drawPrepPanel(snapshot) {
+    const outcome = snapshot.outcome || {};
+    const cx = GAME_CONFIG.canvas.width / 2;
+
+    const shade = context.createLinearGradient(0, 0, 0, GAME_CONFIG.canvas.height);
+    shade.addColorStop(0, 'rgba(7, 13, 30, 0.72)');
+    shade.addColorStop(0.28, 'rgba(7, 13, 30, 0.24)');
+    shade.addColorStop(0.74, 'rgba(7, 13, 30, 0.24)');
+    shade.addColorStop(1, 'rgba(7, 13, 30, 0.84)');
+    context.fillStyle = shade;
+    context.fillRect(0, 0, GAME_CONFIG.canvas.width, GAME_CONFIG.canvas.height);
+
+    context.textAlign = 'center';
+
+    context.font = '800 30px system-ui';
+    context.fillStyle = '#68f5e5';
+    context.shadowColor = 'rgba(104,245,229,.5)';
+    context.shadowBlur = 14;
+    context.fillText(`第 ${outcome.finishedLevel} 关 成功！`, cx, 104);
+    context.shadowBlur = 0;
+
+    context.font = '700 14px system-ui';
+    context.fillStyle = '#c2fff7';
+    context.fillText(
+      `本关 ${outcome.coinsGot ?? snapshot.coinsGot} / ${snapshot.goal} 颗星 · 积分 ${snapshot.points}/${snapshot.pointCap}`,
+      cx,
+      132
+    );
+
+    context.font = '700 13px system-ui';
+    context.fillStyle = '#ffd26f';
+    context.fillText(`下一关 ${Math.ceil(snapshot.prepLeft)} 秒后开始`, cx, 156);
+
+    const cardWidth = 280;
+    const cardHeight = 68;
+    const gap = 14;
+    const totalWidth = snapshot.skills.length * cardWidth + (snapshot.skills.length - 1) * gap;
+    const startX = (GAME_CONFIG.canvas.width - totalWidth) / 2;
+    const cardY = 434;
+
+    snapshot.skills.forEach((skill, index) => {
+      const x = startX + index * (cardWidth + gap);
+      const active = skill.active;
+      const affordable = snapshot.points >= skill.cost && !active;
+      roundedRect(x, cardY, cardWidth, cardHeight, 12,
+        active ? 'rgba(31,74,72,.9)' : 'rgba(15,24,49,.9)',
+        active ? 'rgba(120,241,230,.6)' : affordable ? 'rgba(107,244,207,.38)' : 'rgba(184,215,255,.12)');
+
+      roundedRect(x + 12, cardY + 14, 18, 18, 5,
+        active ? 'rgba(120,241,230,.22)' : affordable ? 'rgba(107,244,207,.16)' : 'rgba(184,215,255,.07)');
+      context.textAlign = 'center';
+      context.font = '800 11px system-ui';
+      context.fillStyle = active ? '#78f1e6' : affordable ? '#c2fff7' : '#4d5b78';
+      context.fillText(String(index + 1), x + 21, cardY + 27);
+
+      context.textAlign = 'left';
+      context.font = '700 13px system-ui';
+      context.fillStyle = active ? '#78f1e6' : affordable ? '#e3ebff' : '#5a6b8e';
+      context.fillText(`${skill.icon} ${skill.name}`, x + 40, cardY + 28);
+
+      context.textAlign = 'right';
+      context.font = '700 11px system-ui';
+      context.fillStyle = active ? '#9ff9ef' : affordable ? '#ffd26f' : '#4d5b78';
+      context.fillText(active ? '已购买' : `${skill.cost} 分`, x + cardWidth - 16, cardY + 28);
+
+      context.textAlign = 'left';
+      context.font = '600 11px system-ui';
+      context.fillStyle = active ? '#a9e8e2' : affordable ? '#a3afd0' : '#4d5b78';
+      context.fillText(skill.desc, x + 40, cardY + 50);
+    });
+
+    context.textAlign = 'center';
+    context.font = '600 12px system-ui';
+    context.fillStyle = '#8f9fc5';
+    context.fillText('按 1 / 2 / 3 购买 · 空格跳过 · 亮线是新幽灵的路线', cx, 526);
+
+    context.textAlign = 'left';
+  }
+
   function drawHud(snapshot, time) {
-    roundedRect(60, 87, 170, 34, 9, 'rgba(7,14,32,.72)', 'rgba(184,215,255,.12)');
+    roundedRect(60, 87, 170, 56, 9, 'rgba(7,14,32,.72)', 'rgba(184,215,255,.12)');
     context.font = '700 14px system-ui';
     context.fillStyle = '#e3ebff';
-    context.fillText(`✦  星星 ${snapshot.coinsGot} / ${snapshot.goal}`, 74, 109);
+    context.fillText(`✦  星星 ${snapshot.coinsGot} / ${snapshot.goal}`, 74, 108);
+    context.font = '700 12px system-ui';
+    context.fillStyle = '#ffd26f';
+    context.fillText(`⚡ 积分 ${snapshot.points}/${snapshot.pointCap}`, 74, 129);
     context.font = '600 12px system-ui';
     context.fillStyle = '#a3afd0';
     context.textAlign = 'right';
@@ -419,6 +562,7 @@ export function createRenderer(canvas, context) {
         if (event.type === 'coin') spawnParticles(event.x, event.y, '#ffcf72', 10);
         if (event.type === 'lose') { spawnParticles(event.x, event.y, '#ff6c9c', 26); flash = 0.9; flashColor = '255,93,143'; }
         if (event.type === 'clear') { spawnParticles(event.x, event.y, '#68f5e5', 18); flash = 0.9; flashColor = '120,249,224'; }
+        if (event.type === 'shield') spawnParticles(event.x, event.y, '#78f1e6', 22);
       }
     },
     render(snapshot, deltaSeconds, time) {
@@ -427,9 +571,20 @@ export function createRenderer(canvas, context) {
 
       drawBackdrop(snapshot);
       drawBackgroundOrbs(time);
+      if (snapshot.mode === GAME_MODES.PREP) {
+        drawPrepPreview(snapshot);
+        drawPrepPanel(snapshot);
+        drawParticles(deltaSeconds);
+        drawFlash();
+        if (flash > 0) flash = Math.max(0, flash - deltaSeconds * 2.5);
+        prevPlayer = { x: snapshot.player.x, y: snapshot.player.y };
+        prevMode = snapshot.mode;
+        return;
+      }
       snapshot.coins.forEach((coin, index) => drawCoin(coin, time, index));
       drawGhosts(snapshot, time);
       drawAvatar(snapshot.player.x, snapshot.player.y, { expression: computeExpression(snapshot) });
+      drawSkillEffects(snapshot, time);
       drawHud(snapshot, time);
       drawParticles(deltaSeconds);
       drawFlash();

@@ -18,6 +18,8 @@ export function createInterface({ canvas, onAction, getMode }) {
   const keys = Object.create(null);
   const pointer = { active: false, touch: false, x: GAME_CONFIG.start.x, y: GAME_CONFIG.start.y };
   let renderedDialogKey = '';
+  let pendingSkill = null;
+  let skills = [];
 
   function setModal({ icon, tag, title, description, button, note, rules = [] }) {
     element('dialogIcon').textContent = icon;
@@ -34,7 +36,7 @@ export function createInterface({ canvas, onAction, getMode }) {
     if (key === renderedDialogKey) return;
     renderedDialogKey = key;
 
-    if (snapshot.mode === GAME_MODES.PLAYING) {
+    if (snapshot.mode === GAME_MODES.PLAYING || snapshot.mode === GAME_MODES.PREP) {
       overlay.classList.add('hidden');
       overlay.classList.remove('mode-menu', 'mode-clear', 'mode-over');
       return;
@@ -49,10 +51,10 @@ export function createInterface({ canvas, onAction, getMode }) {
         icon: '👻',
         tag: 'A GAME ABOUT YOUR PAST',
         title: '十秒后，你将成为敌人。',
-        description: '每关只有 <strong>10 秒</strong>。收集至少 <strong>3 颗星星</strong>，就能进入下一关。<br />但要小心：下一关，过去的你会原样重演你的行动。',
+        description: '每关只有 <strong>10 秒</strong>。收集至少 <strong>3 颗星星</strong>，就能进入下一关。<br />多吃的第 <strong>4、5 颗星星</strong>会换成<strong>积分</strong>（最多 9 分），在关卡间的<strong>准备阶段</strong>购买技能。<br />🧲 磁铁 3 分 · 🕊 原谅 4 分 · 🛡 免死 5 分。',
         button: '开始游戏 →',
-        note: '鼠标移动 / WASD / 方向键 · 手机上拖动手指',
-        rules: ['✦ 收集 3 / 5 颗星星', '👻 躲避历史幽灵', '⏱ 活过 10 秒']
+        note: '鼠标移动 / WASD / 方向键 · 准备阶段按 1·2·3 购买 · 手机上拖动手指',
+        rules: ['✦ 收集 3 / 5 颗星星', '✨ 4·5 星 → 积分（上限 9）', '👻 躲避历史幽灵']
       });
       return;
     }
@@ -136,6 +138,17 @@ export function createInterface({ canvas, onAction, getMode }) {
       actionButton.click();
       return;
     }
+    if (key === ' ' && getMode() === GAME_MODES.PREP) {
+      actionButton.click();
+      return;
+    }
+    if (getMode() === GAME_MODES.PREP) {
+      const index = Number(key) - 1;
+      if (index >= 0 && index < skills.length) {
+        pendingSkill = skills[index].id;
+        return;
+      }
+    }
     if (MOVEMENT_KEYS.has(key)) {
       keys[key] = true;
       pointer.active = false;
@@ -156,9 +169,12 @@ export function createInterface({ canvas, onAction, getMode }) {
       input.up = Boolean(keys.w || keys.arrowup);
       input.down = Boolean(keys.s || keys.arrowdown);
       input.pointer = { active: pointer.active, x: pointer.x, y: pointer.y };
+      input.skill = pendingSkill;
+      pendingSkill = null;
       return input;
     },
     update(snapshot) {
+      skills = snapshot.skills || [];
       metrics.level.textContent = String(snapshot.level).padStart(2, '0');
       const urgent = snapshot.timeLeft < 3 && snapshot.mode === GAME_MODES.PLAYING;
       metrics.time.innerHTML = `${snapshot.timeLeft.toFixed(1)}<span style="font-size:12px;margin-left:3px">s</span>`;

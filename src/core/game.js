@@ -33,6 +33,9 @@ export class Game {
       ghosts: [],
       arena: { ...GAME_CONFIG.arena },
       graceLeft: 0,
+      prepLeft: 0,
+      shieldGrace: 0,
+      previewCoins: null,
       outcome: null
     };
   }
@@ -41,6 +44,7 @@ export class Game {
     this.ghostSystem.reset();
     this.state.level = 1;
     this.state.score = 0;
+    this.state.previewCoins = null;
     this.events.length = 0;
     this.beginLevel();
   }
@@ -51,7 +55,11 @@ export class Game {
     state.elapsed = 0;
     state.timeLeft = GAME_CONFIG.roundDuration;
     state.coinsGot = 0;
-    state.coins = createCoins(state.level, GAME_CONFIG.start, this.random);
+    state.coins = state.previewCoins
+      ? state.previewCoins.map((coin) => ({ ...coin }))
+      : createCoins(state.level, GAME_CONFIG.start, this.random);
+    state.previewCoins = null;
+    state.shieldGrace = 0;
     state.outcome = null;
     resetPlayer(state.player, GAME_CONFIG.start);
     this.ghostSystem.beginLevel({ level: state.level, startPosition: state.player });
@@ -60,21 +68,35 @@ export class Game {
   }
 
   advance() {
-    if (this.state.mode === GAME_MODES.CLEAR) {
-      this.state.level += 1;
-      this.beginLevel();
-    } else if (this.state.mode !== GAME_MODES.PLAYING) {
+    const mode = this.state.mode;
+    if (mode === GAME_MODES.PREP) {
+      this.nextLevel();
+    } else if (mode !== GAME_MODES.PLAYING) {
       this.startRun();
     }
   }
 
+  nextLevel() {
+    this.state.level += 1;
+    this.beginLevel();
+  }
+
   update(deltaSeconds, input = createIdleInput()) {
     const state = this.state;
+    const delta = Number.isFinite(deltaSeconds) ? clamp(deltaSeconds, 0, 0.05) : 0;
+
+    if (state.mode === GAME_MODES.PREP) {
+      state.prepLeft = Math.max(0, state.prepLeft - delta);
+      if (input.skill) this.ghostSystem.buySkill?.(input.skill);
+      if (state.prepLeft <= 0) this.nextLevel();
+      return;
+    }
+
     if (state.mode !== GAME_MODES.PLAYING) return;
 
-    const delta = Number.isFinite(deltaSeconds) ? clamp(deltaSeconds, 0, 0.05) : 0;
     state.elapsed = Math.min(GAME_CONFIG.roundDuration, state.elapsed + delta);
     state.timeLeft = Math.max(0, GAME_CONFIG.roundDuration - state.elapsed);
+    state.shieldGrace = Math.max(0, state.shieldGrace - delta);
 
     updatePlayer(state.player, input, delta, state.arena, GAME_CONFIG.speed);
     this.ghostSystem.recordPosition({ time: state.elapsed, position: state.player });
@@ -83,15 +105,18 @@ export class Game {
       ? Math.max(0, GAME_CONFIG.gracePeriod - state.elapsed)
       : 0;
 
+    const radiusMult = this.ghostSystem.getCoinRadiusMult?.() ?? 1;
     const collected = collectCoins(
       state.player,
       state.coins,
-      GAME_CONFIG.playerRadius,
-      GAME_CONFIG.coinRadius
+      GAME_CONFIG.playerRadius * radiusMult,
+      GAME_CONFIG.coinRadius * radiusMult
     );
     for (const coin of collected) {
       state.coinsGot += 1;
       state.score += 100;
+      if (state.coinsGot === state.goal + 1) this.ghostSystem.addPoints?.(1);
+      else if (state.coinsGot === state.goal + 2) this.ghostSystem.addPoints?.(2);
       this.events.push({ type: 'coin', x: coin.x, y: coin.y });
     }
 
@@ -103,13 +128,20 @@ export class Game {
       return;
     }
 
-    if (state.graceLeft === 0) {
+    if (state.graceLeft === 0 && state.shieldGrace <= 0) {
       const hit = state.ghosts.find((ghost) => (
         distance(state.player, ghost) < GAME_CONFIG.playerRadius + GAME_CONFIG.ghostRadius - 5
       ));
       if (hit) {
-        this.lose('ghost', hit.sourceLevel);
-        return;
+        if (this.ghostSystem.consumeShield?.()) {
+          this.ghostSystem.forgiveGhost?.(hit.sourceLevel);
+          state.ghosts = this.ghostSystem.getGhosts(state.elapsed);
+          state.shieldGrace = GAME_CONFIG.shieldInvincibility;
+          this.events.push({ type: 'shield', x: hit.x, y: hit.y });
+        } else {
+          this.lose('ghost', hit.sourceLevel);
+          return;
+        }
       }
     }
 
@@ -132,14 +164,17 @@ export class Game {
     } catch {
       // Storage is optional; gameplay must continue when it is unavailable.
     }
-    state.mode = GAME_MODES.CLEAR;
+    state.prepLeft = GAME_CONFIG.prepDuration;
+    state.mode = GAME_MODES.PREP;
+    state.previewCoins = createCoins(nextLevel, GAME_CONFIG.start, this.random);
     state.outcome = {
       kind: 'clear',
       finishedLevel,
       nextLevel,
       coinsGot: state.coinsGot,
       ghostCount: state.ghosts.length,
-      score: state.score
+      score: state.score,
+      points: this.ghostSystem.getPoints?.() ?? 0
     };
     this.events.push({ type: 'clear', x: state.player.x, y: state.player.y });
   }
@@ -181,6 +216,15 @@ export class Game {
       })),
       arena: { ...state.arena },
       graceLeft: state.graceLeft,
+      prepLeft: state.prepLeft,
+      points: this.ghostSystem.getPoints?.() ?? 0,
+      pointCap: this.ghostSystem.getPointCap?.() ?? 0,
+      skills: this.ghostSystem.getSkills?.() ?? [],
+      previewCoins: state.previewCoins
+        ? state.previewCoins.map((coin) => ({ ...coin }))
+        : null,
+      previewPaths: this.ghostSystem.getPreviewPaths?.() ?? [],
+      shieldGrace: state.shieldGrace,
       outcome: state.outcome ? { ...state.outcome } : null
     };
   }

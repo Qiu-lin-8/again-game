@@ -180,4 +180,3 @@ body::after {
 @media (prefers-reduced-motion: reduce) {
   .primary, .metric-value.urgent, .dialog, body::after { animation: none; }
 }
-
