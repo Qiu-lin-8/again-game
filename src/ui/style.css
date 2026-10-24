@@ -257,6 +257,15 @@ canvas {
 }
 .overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
+/* 失败结算：压暗但保留赛博街道的霓虹，让背景继续“在场” */
+.overlay.mode-over {
+  background:
+    radial-gradient(ellipse 84% 66% at 50% 48%, rgba(255, 45, 149, .12), rgba(0, 0, 0, 0) 72%),
+    rgba(8, 6, 18, .50);
+  backdrop-filter: blur(3px) saturate(1.08);
+  -webkit-backdrop-filter: blur(3px) saturate(1.08);
+}
+
 .dialog {
   width: min(500px, 100%);
   max-height: 100%;
