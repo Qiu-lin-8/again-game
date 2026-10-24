@@ -61,6 +61,11 @@
   display: flex;
 }
 
+/* 结算及游戏阶段绝不能让封面层盖住状态面板。 */
+.overlay:not(.mode-menu) #gameCover {
+  display: none !important;
+}
+
 #gameCover.cover-hidden {
   display: none;
 }
