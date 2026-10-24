@@ -1,0 +1,136 @@
+/*
+ * media.css — 音频按钮与开始封面样式
+ * ---------------------------------------------------------------
+ * 仅负责 #soundToggle 与 #gameCover 的基础视觉，不覆盖整体页面布局。
+ * 视觉细节统一由成员 C（src/ui/style.css）调整。
+ * DOM 标识 #gameCover / #soundToggle / .mode-menu / .mode-over 保持稳定。
+ */
+
+/* ---------- 静音按钮 ---------- */
+#soundToggle {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  right: 14px;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid rgba(163, 187, 255, .28);
+  border-radius: 999px;
+  background: rgba(15, 24, 49, .82);
+  color: #d2ddf4;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .28);
+  transition: transform .12s, border-color .2s, color .2s;
+}
+
+#soundToggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(85, 239, 217, .55);
+  color: #6df8e0;
+}
+
+#soundToggle:active {
+  transform: translateY(0);
+}
+
+/* 静音状态高亮 */
+#soundToggle.is-muted {
+  border-color: rgba(255, 121, 175, .5);
+  color: #ff79af;
+}
+
+/* ---------- 开始封面 ----------
+ * 默认隐藏，仅在开始界面（.mode-menu）显示。
+ * 结算 / 游戏中 / 准备阶段都不显示。
+ */
+#gameCover {
+  display: none;
+}
+
+.overlay.mode-menu #gameCover {
+  display: flex;
+}
+
+#gameCover.cover-hidden {
+  display: none;
+}
+
+#gameCover .cover-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  /* 不拉伸、不变形：保持原始比例并居中裁剪 */
+}
+
+#gameCover .cover-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  color: #a9b7d9;
+  font-size: 13px;
+  letter-spacing: .04em;
+}
+
+#gameCover .cover-fallback .cover-emoji {
+  font-size: 52px;
+  filter: drop-shadow(0 6px 18px rgba(85, 239, 217, .4));
+}
+
+#gameCover .cover-fallback .cover-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  color: #8392b6;
+  padding: 4px 10px;
+  border: 1px dashed rgba(163, 187, 255, .3);
+  border-radius: 999px;
+}
+
+/* 开始封面的暗化叠层，确保按钮清晰可见 */
+.overlay.mode-menu .dialog {
+  position: relative;
+  z-index: 4;
+}
+
+/* 封面在结算 / 游戏中不显示，由 .cover-hidden 控制；额外用 mode 兜底 */
+.overlay.mode-menu #gameCover {
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 2;
+  background: radial-gradient(ellipse at 50% 35%, #1a2a5e 0%, #0b1631 70%);
+}
+
+#gameCover.cover-hidden {
+  display: none !important;
+}
+
+/* 移动端：按钮稍大，便于点击 */
+@media (max-width: 540px) {
+  #soundToggle {
+    width: 48px;
+    height: 48px;
+    font-size: 21px;
+    top: max(10px, env(safe-area-inset-top));
+    right: 10px;
+  }
+}

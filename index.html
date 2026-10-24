@@ -7,8 +7,10 @@
   <meta name="description" content="上一局的我想杀我 · 十秒后的你，将成为新的敌人。" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>" />
   <title>上一局的我想杀我 | Ghosts of Me</title>
+  <link rel="stylesheet" href="./src/media/media.css" />
 </head>
 <body>
+  <button id="soundToggle" type="button" aria-label="开启或关闭声音" title="声音开关">🔊</button>
   <main class="app">
     <div class="topline">
       <div class="tag">PLAYABLE PROTOTYPE</div>
@@ -31,6 +33,13 @@
       <div class="arena-inner">
         <canvas id="game" width="960" height="540" aria-label="游戏场地：移动角色收集星星，躲避上一关的幽灵"></canvas>
         <div class="overlay" id="overlay">
+          <div class="cover" id="gameCover">
+            <img class="cover-art" src="./assets/cover/game-cover.webp" alt="上一局的我想杀我 · 游戏封面" decoding="async" onload="this.parentElement.classList.add('cover-loaded');this.previousElementSibling.style.display='none';" onerror="this.style.display='none';" />
+            <div class="cover-fallback" aria-hidden="true">
+              <span class="cover-emoji">👻</span>
+              <span class="cover-tag">COVER PLACEHOLDER · 占位</span>
+            </div>
+          </div>
           <div class="dialog">
             <span class="dialog-icon" id="dialogIcon">👻</span>
             <div class="eyebrow" id="dialogTag">A GAME ABOUT YOUR PAST</div>
