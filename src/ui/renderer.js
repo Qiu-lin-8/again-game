@@ -174,46 +174,104 @@ export function createRenderer(canvas, context) {
   }
 
   function drawAvatar(x, y, { ghost = false, index = 0, label = '你', alpha = 1, expression = 'idle' } = {}) {
-    const tint = ghost ? GHOST_COLORS[index % GHOST_COLORS.length] : '#68f5e5';
+    if (ghost) {
+      const tint = GHOST_COLORS[index % GHOST_COLORS.length];
+      const R = 16;
+      const bottom = y + R * 0.95;
+      const feet = 4;
+      const w = (2 * R) / feet;
+      context.save();
+      context.globalAlpha = alpha;
+      context.shadowColor = tint;
+      context.shadowBlur = 22;
+      context.beginPath();
+      context.arc(x, y, R, Math.PI, Math.PI * 2, false);
+      context.lineTo(x + R, bottom);
+      for (let i = 0; i < feet; i += 1) {
+        const xa = x + R - w * i;
+        const xb = x + R - w * (i + 1);
+        const xm = (xa + xb) / 2;
+        context.quadraticCurveTo(xm, bottom + 7, xb, bottom);
+      }
+      context.closePath();
+      context.fillStyle = tint;
+      context.fill();
+      context.shadowBlur = 0;
+
+      context.beginPath();
+      context.arc(x - 4, y - 4, R * 0.55, Math.PI * 1.05, Math.PI * 1.75, false);
+      context.strokeStyle = 'rgba(255,255,255,.38)';
+      context.lineWidth = 2.4;
+      context.stroke();
+
+      const eyeY = y - 1;
+      context.fillStyle = '#3a1e36';
+      context.beginPath();
+      context.arc(x - 5, eyeY, 3, 0, Math.PI * 2);
+      context.arc(x + 5, eyeY, 3, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = 'rgba(255,255,255,.92)';
+      context.beginPath();
+      context.arc(x - 4, eyeY - 1, 1, 0, Math.PI * 2);
+      context.arc(x + 6, eyeY - 1, 1, 0, Math.PI * 2);
+      context.fill();
+
+      context.strokeStyle = '#3a1e36';
+      context.lineWidth = 1.4;
+      context.beginPath();
+      context.arc(x, y + 5, 3, 0.12 * Math.PI, 0.88 * Math.PI);
+      context.stroke();
+
+      context.fillStyle = 'rgba(255,150,190,.32)';
+      context.beginPath();
+      context.arc(x - 8, y + 3, 2, 0, Math.PI * 2);
+      context.arc(x + 8, y + 3, 2, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+      context.textAlign = 'left';
+      return;
+    }
+
+    const tint = '#68f5e5';
     context.save();
     context.globalAlpha = alpha;
     context.shadowColor = tint;
-    context.shadowBlur = ghost ? 20 : 30;
+    context.shadowBlur = 30;
     context.beginPath();
-    context.arc(x, y, ghost ? 16 : 17, 0, Math.PI * 2);
+    context.arc(x, y, 17, 0, Math.PI * 2);
     context.fillStyle = tint;
     context.fill();
     context.shadowBlur = 0;
     context.beginPath();
-    context.arc(x, y - 4, ghost ? 11 : 12, Math.PI, 0);
-    context.fillStyle = ghost ? 'rgba(255,255,255,.27)' : 'rgba(255,255,255,.55)';
+    context.arc(x, y - 4, 12, Math.PI, 0);
+    context.fillStyle = 'rgba(255,255,255,.55)';
     context.fill();
 
     const eyeR = (expression === 'danger' || expression === 'fail') ? 3.2 : 2.4;
     const eyeDY = (expression === 'fail') ? -1 : -2;
-    context.fillStyle = ghost ? '#46253f' : '#115363';
+    context.fillStyle = '#115363';
     context.beginPath();
     context.arc(x - 5, y + eyeDY, eyeR, 0, Math.PI * 2);
     context.arc(x + 5, y + eyeDY, eyeR, 0, Math.PI * 2);
     context.fill();
 
-    context.strokeStyle = ghost ? '#612e56' : '#115363';
+    context.strokeStyle = '#115363';
     context.lineWidth = 1.5;
     context.beginPath();
     if (expression === 'fail') {
       context.arc(x, y + 3, 4.2, 0, Math.PI * 2);
-      context.fillStyle = ghost ? '#612e56' : '#115363';
+      context.fillStyle = '#115363';
       context.fill();
     } else if (expression === 'danger') {
       context.arc(x, y + 4, 2.6, 0, Math.PI * 2);
-      context.fillStyle = ghost ? '#612e56' : '#115363';
+      context.fillStyle = '#115363';
       context.fill();
     } else {
       context.arc(x, y + 3, 3.5, 0, Math.PI);
       context.stroke();
     }
 
-    if (expression === 'danger' && !ghost) {
+    if (expression === 'danger') {
       context.fillStyle = 'rgba(120,200,255,.85)';
       context.beginPath();
       context.arc(x + 12, y - 9, 2.4, 0, Math.PI * 2);
@@ -223,9 +281,9 @@ export function createRenderer(canvas, context) {
     if (label) {
       context.font = '800 11px system-ui';
       context.textAlign = 'center';
-      const width = ghost ? 32 : 24;
-      roundedRect(x - width / 2, y - 36, width, 17, 8, ghost ? 'rgba(86,35,67,.8)' : 'rgba(17,76,88,.85)');
-      context.fillStyle = ghost ? '#ffc1d7' : '#c2fff7';
+      const width = 24;
+      roundedRect(x - width / 2, y - 36, width, 17, 8, 'rgba(17,76,88,.85)');
+      context.fillStyle = '#c2fff7';
       context.fillText(label, x, y - 24);
     }
     context.restore();
@@ -238,13 +296,13 @@ export function createRenderer(canvas, context) {
     context.font = '800 13px system-ui';
     context.textAlign = 'center';
     const w = 24;
-    roundedRect(x - w / 2, y - 52, w, 19, 9, 'rgba(10,16,34,.82)', tint);
+    roundedRect(x - w / 2, y - 50, w, 19, 9, 'rgba(10,16,34,.82)', tint);
     context.fillStyle = '#ffffff';
-    context.fillText(badge, x, y - 39);
+    context.fillText(badge, x, y - 37);
     context.restore();
   }
 
-  function drawGhosts(snapshot) {
+  function drawGhosts(snapshot, time) {
     snapshot.ghosts.forEach((ghost, index) => {
       const tint = GHOST_COLORS[index % GHOST_COLORS.length];
       context.save();
@@ -252,17 +310,19 @@ export function createRenderer(canvas, context) {
         context.globalAlpha = (trailIndex + 1) * (0.22 / Math.max(1, trail.length));
         context.fillStyle = tint;
         context.beginPath();
-        context.arc(position.x, position.y, 13, 0, Math.PI * 2);
+        context.arc(position.x, position.y, 11, 0, Math.PI * 2);
         context.fill();
       });
       context.restore();
       const intangible = snapshot.mode === GAME_MODES.PLAYING && snapshot.graceLeft > 0;
-      drawGhostBadge(ghost.x, ghost.y, ghost.sourceLevel, tint);
-      drawAvatar(ghost.x, ghost.y, {
+      const bob = Math.sin(time * 0.004 + index * 1.3) * 3;
+      const gy = ghost.y + bob;
+      drawGhostBadge(ghost.x, gy, ghost.sourceLevel, tint);
+      drawAvatar(ghost.x, gy, {
         ghost: true,
         index,
-        label: circledNumber(ghost.sourceLevel),
-        alpha: intangible ? 0.42 : 0.8
+        label: null,
+        alpha: intangible ? 0.42 : 0.82
       });
     });
   }
@@ -368,7 +428,7 @@ export function createRenderer(canvas, context) {
       drawBackdrop(snapshot);
       drawBackgroundOrbs(time);
       snapshot.coins.forEach((coin, index) => drawCoin(coin, time, index));
-      drawGhosts(snapshot);
+      drawGhosts(snapshot, time);
       drawAvatar(snapshot.player.x, snapshot.player.y, { expression: computeExpression(snapshot) });
       drawHud(snapshot, time);
       drawParticles(deltaSeconds);

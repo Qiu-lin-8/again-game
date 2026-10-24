@@ -27,7 +27,6 @@ export function createInterface({ canvas, onAction, getMode }) {
     element('quickRules').innerHTML = rules.map((rule) => `<span>${rule}</span>`).join('');
     element('dialogNote').textContent = note || '';
     actionButton.textContent = button;
-    overlay.classList.remove('hidden');
   }
 
   function showDialog(snapshot) {
@@ -37,10 +36,15 @@ export function createInterface({ canvas, onAction, getMode }) {
 
     if (snapshot.mode === GAME_MODES.PLAYING) {
       overlay.classList.add('hidden');
+      overlay.classList.remove('mode-menu', 'mode-clear', 'mode-over');
       return;
     }
 
+    overlay.classList.remove('hidden');
+
     if (snapshot.mode === GAME_MODES.MENU) {
+      overlay.classList.add('mode-menu');
+      overlay.classList.remove('mode-clear', 'mode-over');
       setModal({
         icon: '👻',
         tag: 'A GAME ABOUT YOUR PAST',
@@ -55,6 +59,8 @@ export function createInterface({ canvas, onAction, getMode }) {
 
     const outcome = snapshot.outcome;
     if (snapshot.mode === GAME_MODES.CLEAR) {
+      overlay.classList.add('mode-clear');
+      overlay.classList.remove('mode-menu', 'mode-over');
       setModal({
         icon: '✨',
         tag: 'LEVEL CLEAR · TIME LOOP ACTIVATED',
@@ -70,6 +76,8 @@ export function createInterface({ canvas, onAction, getMode }) {
     const hitGhost = outcome.reason === 'ghost';
     const title = hitGhost ? `被第 ${outcome.sourceLevel} 关的自己干掉了！` : '时间到了，星星没拿够！';
     const roast = hitGhost ? '系统评价：建议少和过去的自己来往。' : '系统评价：你的人生，还差几颗星星。';
+    overlay.classList.add('mode-over');
+    overlay.classList.remove('mode-menu', 'mode-clear');
     setModal({
       icon: hitGhost ? '💀' : '⏰',
       tag: 'GAME OVER · YOUR PAST WON',
