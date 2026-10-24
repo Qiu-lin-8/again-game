@@ -1,48 +1,73 @@
-# again-game
+# 上一局的我想杀我 | Ghosts of Me
 
-AI Game Hackathon 2026 参赛作品：由三人团队协作开发的一款创意网页小游戏。
+> 你最大的敌人，不是别人，而是十秒前的自己。
 
-## 黑客松背景
+这是 AI Coding 游戏黑客松的一天制网页游戏项目。当前版本由原始单文件 Demo 模块化重构而来，保留了原有玩法、计分、视觉风格和鼠标/键盘/触屏操作。
 
-- 赛道：游戏创作
-- 开发形式：3 人团队，使用 Codex 等 AI 编程工具辅助开发
-- 开发周期：约 1 天
-- 当前阶段：仅完成 GitHub 协作环境初始化，游戏方案与技术栈待补充
+## 运行
 
-## 团队成员
+需要 Node.js 20.19+ 或 22.12+。
 
-| 成员 | GitHub ID | 建议负责分支 |
-| --- | --- | --- |
-| 仓库所有者 | Qiu-lin-8 | `main`（集成与发布） |
-| 队友 A | EternalAurora123 | `feature/gameplay`（核心玩法与逻辑） |
-| 队友 B | wuli-11 | `feature/ui`（界面、动画与交互） |
-| 团队共同协作 | 全体成员 | `feature/features`（扩展与创新玩法） |
-
-## 运行说明
-
-技术栈、依赖安装命令和本地启动命令尚未确定，待游戏方案确认后补充。
-
-预计流程：
-
-```text
-安装依赖：待补充
-启动开发服务器：待补充
-构建演示版本：待补充
+```bash
+npm install
+npm run dev
 ```
 
-## 项目结构
+终端会显示本地访问地址，通常为 `http://localhost:5173`。
+
+构建可部署静态网页：
+
+```bash
+npm run build
+```
+
+产物位于 `dist/`。本项目使用 ES Modules，不能再通过双击 `index.html` 的 `file://` 地址运行。
+
+运行逻辑测试：
+
+```bash
+npm test
+```
+
+## 玩法
+
+- 每关 10 秒，共有 5 枚金币（视觉上显示为星星）。
+- 收集至少 3 枚并存活到倒计时结束即可通关。
+- 通关轨迹会在下一关变成幽灵，并在相同时间重放。
+- 每通过一关增加一个历史幽灵；碰到幽灵立即失败。
+- 鼠标、WASD、方向键和触屏拖动均可控制角色。
+- 每关开始有 1.25 秒幽灵碰撞保护。
+- 浏览器 LocalStorage 保存历史最高关卡。
+
+## 目录
 
 ```text
 again-game/
-├── assets/           # 图片、音频等游戏素材
-├── data/             # 游戏数据（如需要）
-├── docs/             # 需求、玩法和设计文档
-├── logs/             # 项目过程记录
-├── output/           # 可交付的演示构建产物
-├── src/              # 网页游戏源代码（待创建）
-├── .gitignore        # Git 忽略规则
-├── CONTRIBUTING.md   # 团队协作说明
-└── README.md         # 项目说明
+├── index.html
+├── package.json
+├── README.md
+├── CONTRIBUTING.md
+├── src/
+│   ├── main.js
+│   ├── core/
+│   │   ├── config.js
+│   │   ├── game.js
+│   │   ├── player.js
+│   │   └── coin.js
+│   ├── ghost/
+│   │   ├── recorder.js
+│   │   ├── replay.js
+│   │   └── ghost.js
+│   ├── ui/
+│   │   ├── renderer.js
+│   │   ├── interface.js
+│   │   └── style.css
+│   └── shared/
+│       └── contracts.js
+├── test/
+│   └── game.test.js
+└── docs/
+    └── ARCHITECTURE.md
 ```
 
-> 项目结构会在技术栈确定后按最小需要调整，避免过度设计。
+模块接口与状态字段详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。原始单文件 Demo 保留在父目录，供回归对照，不参与 Vite 构建。

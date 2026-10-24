@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a1026" />
+  <meta name="description" content="上一局的我想杀我 · 十秒后的你，将成为新的敌人。" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>" />
+  <title>上一局的我想杀我 | Ghosts of Me</title>
+</head>
+<body>
+  <main class="app">
+    <div class="topline">
+      <div class="tag">PLAYABLE PROTOTYPE</div>
+      <div class="build">GHOSTS OF ME · WEB DEMO / V1.0</div>
+    </div>
+    <header class="title-group">
+      <div>
+        <h1>上一局的我，<span>想杀我。</span></h1>
+        <div class="subtitle">你最大的敌人，不是别人。<b>是十秒前的自己。</b></div>
+      </div>
+      <div class="pill">✦ 10 秒一局 · 无限循环挑战</div>
+    </header>
+    <section class="metrics" aria-label="游戏数据">
+      <div class="metric"><span class="metric-label">当前关卡 / LEVEL</span><span class="metric-value teal" id="levelMetric">01</span></div>
+      <div class="metric"><span class="metric-label">剩余时间 / TIME</span><span class="metric-value" id="timeMetric">10.0<span style="font-size:12px;margin-left:3px">s</span></span></div>
+      <div class="metric"><span class="metric-label">累计得分 / SCORE</span><span class="metric-value gold" id="scoreMetric">0000</span></div>
+      <div class="metric"><span class="metric-label">最高关卡 / BEST</span><span class="metric-value pink" id="bestMetric">01</span></div>
+    </section>
+    <div class="arena-outer">
+      <div class="arena-inner">
+        <canvas id="game" width="960" height="540" aria-label="游戏场地：移动角色收集星星，躲避上一关的幽灵"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="dialog">
+            <span class="dialog-icon" id="dialogIcon">👻</span>
+            <div class="eyebrow" id="dialogTag">A GAME ABOUT YOUR PAST</div>
+            <h2 id="dialogTitle">十秒后，你将成为敌人。</h2>
+            <p id="dialogText"></p>
+            <div class="quick-rules" id="quickRules"></div>
+            <button class="primary" id="actionButton" type="button">开始游戏 →</button>
+            <div class="mini-note" id="dialogNote"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="keys">🎮 操作：<span class="key">鼠标</span> 跟随 / <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> / 手机上按住拖动</div>
+      <div class="legend"><span><i class="dot you"></i>你</span><span><i class="dot coin"></i>星星</span><span><i class="dot ghost"></i>过去的你</span></div>
+    </div>
+    <p class="footer">GHOSTS OF ME · 一款专为 AI 游戏黑客松制作的可玩原型 · 无需联网即可游玩</p>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
