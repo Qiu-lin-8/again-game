@@ -93,9 +93,9 @@ export function createInterface({ canvas, onAction, getMode }) {
     overlay.classList.add('mode-over');
     overlay.classList.remove('mode-menu', 'mode-clear');
     setModal({
-      icon: hitGhost ? '💀' : '⏰',
+      icon: '💀',
       tag: 'GAME OVER · YOUR PAST WON',
-      title: hitGhost ? '小丑竟是我自己！' : '再快一点点！',
+      title: '小丑竟是我自己！',
       description: `${cause}<br><span class="roast">${roast}</span><br>这次闯到了 <strong>第 ${outcome.level} 关</strong>，共获得 <strong>${outcome.score} 分</strong>。`,
       button: '我不服！再来一局！',
       note: `🏆 历史最高：第 ${outcome.best} 关 · 每次重开都会生成一条全新的时间线。`,
