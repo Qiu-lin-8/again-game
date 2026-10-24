@@ -1,7 +1,7 @@
 export const GAME_MODES = Object.freeze({
   MENU: 'menu',
   PLAYING: 'playing',
-  CLEAR: 'clear',
+  PREP: 'prep',
   OVER: 'over'
 });
 
@@ -25,6 +25,13 @@ export const GAME_MODES = Object.freeze({
  *   ghosts: GhostSnapshot[],
  *   arena: ArenaSnapshot,
  *   graceLeft: number,
+ *   prepLeft: number,
+ *   points: number,
+ *   pointCap: number,
+ *   skills: Array<{id: string, name: string, icon: string, cost: number, desc: string, active: boolean}>,
+ *   previewCoins: CoinSnapshot[]|null,
+ *   previewPaths: Array<{id: string, sourceLevel: number, points: Position[]}>,
+ *   shieldGrace: number,
  *   outcome: null|Record<string, unknown>
  * }} GameSnapshot
  */
@@ -35,6 +42,7 @@ export function createIdleInput() {
     right: false,
     up: false,
     down: false,
-    pointer: { active: false, x: 0, y: 0 }
+    pointer: { active: false, x: 0, y: 0 },
+    skill: null
   };
 }

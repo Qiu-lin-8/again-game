@@ -18,6 +18,8 @@ export function createInterface({ canvas, onAction, getMode }) {
   const keys = Object.create(null);
   const pointer = { active: false, touch: false, x: GAME_CONFIG.start.x, y: GAME_CONFIG.start.y };
   let renderedDialogKey = '';
+  let pendingSkill = null;
+  let skills = [];
 
   function setModal({ icon, tag, title, description, button, note, rules = [] }) {
     element('dialogIcon').textContent = icon;
@@ -35,7 +37,7 @@ export function createInterface({ canvas, onAction, getMode }) {
     if (key === renderedDialogKey) return;
     renderedDialogKey = key;
 
-    if (snapshot.mode === GAME_MODES.PLAYING) {
+    if (snapshot.mode === GAME_MODES.PLAYING || snapshot.mode === GAME_MODES.PREP) {
       overlay.classList.add('hidden');
       return;
     }
@@ -45,28 +47,15 @@ export function createInterface({ canvas, onAction, getMode }) {
         icon: '👻',
         tag: 'A GAME ABOUT YOUR PAST',
         title: '十秒后，你将成为敌人。',
-        description: '每关只有 <strong>10 秒</strong>。收集至少 <strong>3 颗星星</strong>，就能进入下一关。<br />但要小心：下一关，过去的你会原样重演你的行动。',
+        description: '每关只有 <strong>10 秒</strong>。收集至少 <strong>3 颗星星</strong>，就能进入下一关。<br />多吃的第 <strong>4、5 颗星星</strong>会换成<strong>积分</strong>（最多 9 分），在关卡间的<strong>准备阶段</strong>购买技能。<br />🧲 磁铁 3 分 · 🕊 原谅 4 分 · 🛡 免死 5 分。',
         button: '开始游戏 →',
-        note: '鼠标移动 / WASD / 方向键 · 手机上拖动手指',
-        rules: ['✦ 收集 3 / 5 颗星星', '👻 躲避历史幽灵', '⏱ 活过 10 秒']
+        note: '鼠标移动 / WASD / 方向键 · 准备阶段按 1·2·3 购买 · 手机上拖动手指',
+        rules: ['✦ 收集 3 / 5 颗星星', '✨ 4·5 星 → 积分（上限 9）', '👻 躲避历史幽灵']
       });
       return;
     }
 
     const outcome = snapshot.outcome;
-    if (snapshot.mode === GAME_MODES.CLEAR) {
-      setModal({
-        icon: '✨',
-        tag: 'LEVEL CLEAR · TIME LOOP ACTIVATED',
-        title: `第 ${outcome.finishedLevel} 关成功！`,
-        description: `你拿到了 <strong>${outcome.coinsGot} / 5</strong> 颗星星！下一关，<strong>第 ${outcome.finishedLevel} 关的你</strong>将加入追杀。<br>你刚才走过的每一步，都可能成为新的危险。`,
-        button: `进入第 ${outcome.nextLevel} 关 →`,
-        note: '提示：可以刻意规划路线，给未来的自己留活路。',
-        rules: [`🪙 本关 ${outcome.coinsGot} 颗`, `👻 下关 ${outcome.ghostCount} 个幽灵`, `✦ 累计 ${outcome.score} 分`]
-      });
-      return;
-    }
-
     const hitGhost = outcome.reason === 'ghost';
     const title = hitGhost ? `被第 ${outcome.sourceLevel} 关的自己干掉了！` : '时间到了，星星没拿够！';
     const roast = hitGhost ? '系统评价：建议少和过去的自己来往。' : '系统评价：你的人生，还差几颗星星。';
@@ -128,6 +117,17 @@ export function createInterface({ canvas, onAction, getMode }) {
       actionButton.click();
       return;
     }
+    if (key === ' ' && getMode() === GAME_MODES.PREP) {
+      actionButton.click();
+      return;
+    }
+    if (getMode() === GAME_MODES.PREP) {
+      const index = Number(key) - 1;
+      if (index >= 0 && index < skills.length) {
+        pendingSkill = skills[index].id;
+        return;
+      }
+    }
     if (MOVEMENT_KEYS.has(key)) {
       keys[key] = true;
       pointer.active = false;
@@ -148,9 +148,12 @@ export function createInterface({ canvas, onAction, getMode }) {
       input.up = Boolean(keys.w || keys.arrowup);
       input.down = Boolean(keys.s || keys.arrowdown);
       input.pointer = { active: pointer.active, x: pointer.x, y: pointer.y };
+      input.skill = pendingSkill;
+      pendingSkill = null;
       return input;
     },
     update(snapshot) {
+      skills = snapshot.skills || [];
       metrics.level.textContent = String(snapshot.level).padStart(2, '0');
       metrics.time.innerHTML = `${snapshot.timeLeft.toFixed(1)}<span style="font-size:12px;margin-left:3px">s</span>`;
       metrics.time.style.color = snapshot.timeLeft < 3 && snapshot.mode === GAME_MODES.PLAYING ? '#ff79af' : '#f0f5ff';
