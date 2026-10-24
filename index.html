@@ -19,7 +19,8 @@
     <header class="title-group">
       <div>
         <h1>上一局的我，<span>想杀我。</span></h1>
-        <div class="subtitle">你最大的敌人，不是别人。<b>是十秒前的自己。</b></div>
+        <div class="english-title"><i></i><strong>Ghosts of Me</strong><i></i></div>
+        <div class="subtitle">记住过去，把握现在</div>
       </div>
       <div class="pill">✦ 10 秒一局 · 无限循环挑战</div>
     </header>
@@ -33,13 +34,6 @@
       <div class="arena-inner">
         <canvas id="game" width="960" height="540" aria-label="游戏场地：移动角色收集星星，躲避上一关的幽灵"></canvas>
         <div class="overlay" id="overlay">
-          <div class="cover" id="gameCover">
-            <img class="cover-art" src="./assets/cover/game-cover.webp" alt="上一局的我想杀我 · 游戏封面" decoding="async" onload="this.parentElement.classList.add('cover-loaded');this.nextElementSibling.style.display='none';" onerror="this.style.display='none';" />
-            <div class="cover-fallback" aria-hidden="true">
-              <span class="cover-emoji">👻</span>
-              <span class="cover-tag">COVER PLACEHOLDER · 占位</span>
-            </div>
-          </div>
           <div class="dialog">
             <span class="dialog-icon" id="dialogIcon">👻</span>
             <div class="eyebrow" id="dialogTag">A GAME ABOUT YOUR PAST</div>

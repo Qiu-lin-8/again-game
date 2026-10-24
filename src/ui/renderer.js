@@ -209,9 +209,9 @@ export function createRenderer(canvas, context) {
   function getBackdropGradient() {
     if (!backdropGrad) {
       backdropGrad = context.createLinearGradient(0, 0, canvasWidth, canvasHeight);
-      backdropGrad.addColorStop(0, '#241a3d');
-      backdropGrad.addColorStop(0.55, '#1a1430');
-      backdropGrad.addColorStop(1, '#161130');
+      backdropGrad.addColorStop(0, '#08143f');
+      backdropGrad.addColorStop(0.55, '#071238');
+      backdropGrad.addColorStop(1, '#130a3c');
     }
     return backdropGrad;
   }
@@ -223,7 +223,7 @@ export function createRenderer(canvas, context) {
         canvasWidth / 2, canvasHeight / 2, canvasWidth * 0.62
       );
       vignetteGrad.addColorStop(0, 'rgba(255,255,255,0)');
-      vignetteGrad.addColorStop(1, 'rgba(8,6,18,0.55)');
+      vignetteGrad.addColorStop(1, 'rgba(2,4,24,0.72)');
     }
     return vignetteGrad;
   }
@@ -236,7 +236,7 @@ export function createRenderer(canvas, context) {
     context.beginPath();
     context.rect(arena.x, arena.y, arena.w, arena.h);
     context.clip();
-    context.strokeStyle = 'rgba(170,150,210,.10)';
+    context.strokeStyle = 'rgba(91,184,255,.16)';
     context.lineWidth = 1;
     for (let x = arena.x + 30; x < arena.x + arena.w; x += 42) {
       context.beginPath();
@@ -255,8 +255,8 @@ export function createRenderer(canvas, context) {
     context.fillStyle = getVignetteGradient();
     context.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    roundRect(arena.x, arena.y, arena.w, arena.h, 16, null, 'rgba(150,200,255,.28)');
-    context.strokeStyle = 'rgba(150,200,255,.32)';
+    roundRect(arena.x, arena.y, arena.w, arena.h, 16, null, 'rgba(49,236,255,.5)', 1.5);
+    context.strokeStyle = 'rgba(113,200,217,.72)';
     context.lineWidth = 2;
     const corner = 24;
     const corners = [
@@ -273,6 +273,59 @@ export function createRenderer(canvas, context) {
       context.lineTo(x, y + sy * corner);
       context.stroke();
     }
+  }
+
+  function drawMenuScene(time) {
+    const cx = canvasWidth / 2;
+    const cy = canvasHeight * 0.54;
+    context.save();
+    context.globalCompositeOperation = 'screen';
+    for (const [rx, ry, color, alpha] of [
+      [360, 116, '#ff4fbc', .92],
+      [278, 86, '#31ecff', .96]
+    ]) {
+      context.globalAlpha = alpha;
+      context.strokeStyle = color;
+      context.lineWidth = 4;
+      context.shadowColor = color;
+      context.shadowBlur = 18;
+      context.beginPath();
+      context.ellipse(cx, cy + 34, rx, ry, 0, 0, Math.PI * 2);
+      context.stroke();
+    }
+    context.restore();
+
+    const ghostSpots = [
+      [-330, 42, 31], [-246, -34, 27], [-154, -74, 25],
+      [156, -78, 25], [248, -35, 27], [334, 46, 31],
+      [-242, 112, 29], [244, 112, 29]
+    ];
+    ghostSpots.forEach(([dx, dy, size], index) => {
+      const bob = Math.sin(time * .003 + index * .85) * 5;
+      context.save();
+      context.shadowColor = '#31ecff';
+      context.shadowBlur = 20;
+      context.globalAlpha = .76 + Math.sin(time * .002 + index) * .08;
+      drawIcon('ghost', cx + dx, cy + dy + bob, size, '#71ddeb');
+      context.restore();
+    });
+
+    context.save();
+    context.shadowColor = '#f8d978';
+    context.shadowBlur = 28;
+    const pulse = 1 + Math.sin(time * .004) * .08;
+    context.translate(cx + 28, cy - 96);
+    context.scale(pulse, pulse);
+    star(0, 0, 19, 8, '#f8d978', time * .0005);
+    star(0, 0, 8, 3.5, '#fff5c1', time * .0005);
+    context.restore();
+
+    context.save();
+    context.translate(cx, cy + 34);
+    context.scale(1.45, 1.45);
+    context.translate(-cx, -(cy + 34));
+    drawAvatar(cx, cy + 34, { facing: 'back', anim: 'idle', danger: false, alpha: 1 });
+    context.restore();
   }
 
   function drawCoin(coin, time, offset) {
@@ -871,6 +924,15 @@ export function createRenderer(canvas, context) {
 
       const anim = updateAnimation(snapshot, deltaSeconds);
 
+      if (snapshot.mode === GAME_MODES.MENU) {
+        context.clearRect(0, 0, canvasWidth, canvasHeight);
+        drawMenuScene(time);
+        drawParticles(deltaSeconds);
+        drawFlash();
+        prevPlayer = { x: snapshot.player.x, y: snapshot.player.y };
+        prevMode = snapshot.mode;
+        return;
+      }
       drawBackdrop();
       if (snapshot.mode === GAME_MODES.PREP) {
         drawPrepPreview(snapshot);
