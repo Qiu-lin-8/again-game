@@ -16,6 +16,7 @@ export function circledNumber(level) {
  * 中心锚点取角色实体中心（源坐标 32, 34.5），使视觉与碰撞中心对齐。
  * ------------------------------------------------------------------ */
 const HERO_SHEET_URL = new URL('../../assets/character/hero-sheet-outlined.png', import.meta.url).href;
+const COVER_URL = new URL('../../assets/cover/cover.jpg', import.meta.url).href;
 const FRAME_SIZE = 64;
 const HERO_SCALE = 0.72; // 64*0.72 ≈ 46 整帧 → 角色实体约 23×40px（在 34~40 范围内）
 const HERO_ANCHOR_X = 32;
@@ -77,6 +78,48 @@ export function createRenderer(canvas, context) {
     img.onload = () => { sprite.img = img; sprite.ready = true; };
     img.onerror = () => { sprite.ready = false; };
     img.src = HERO_SHEET_URL;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 封面背景：加载后一次性「柔化 + 压暗」预渲染到离屏画布，
+   * 之后每帧只需一次 drawImage，低端设备也不掉帧。
+   * Node / 无 DOM 环境保持 null，drawBackdrop 自动回退到渐变底色。
+   * ------------------------------------------------------------------ */
+  const cover = { surface: null };
+  if (typeof document !== 'undefined'
+    && typeof document.createElement === 'function'
+    && typeof Image !== 'undefined') {
+    const coverImage = new Image();
+    coverImage.onload = () => {
+      try {
+        const surface = document.createElement('canvas');
+        surface.width = canvasWidth;
+        surface.height = canvasHeight;
+        const surfaceContext = surface.getContext('2d');
+        if (!surfaceContext) return;
+        const scale = Math.max(canvasWidth / coverImage.width, canvasHeight / coverImage.height) * 1.05;
+        const dw = coverImage.width * scale;
+        const dh = coverImage.height * scale;
+        const dx = (canvasWidth - dw) / 2;
+        const dy = (canvasHeight - dh) / 2;
+        // 轻度柔化：保留赛博街景氛围，又让炸裂的标题文字不与游戏元素抢注意力
+        surfaceContext.filter = 'blur(4px) saturate(1.05)';
+        surfaceContext.drawImage(coverImage, dx, dy, dw, dh);
+        surfaceContext.filter = 'none';
+        // 压暗 scrim：保证金币 / 幽灵 / 角色 / HUD 在花哨背景上依然清晰
+        const scrim = surfaceContext.createLinearGradient(0, 0, 0, canvasHeight);
+        scrim.addColorStop(0, 'rgba(10,8,24,0.64)');
+        scrim.addColorStop(0.5, 'rgba(10,8,24,0.50)');
+        scrim.addColorStop(1, 'rgba(10,8,24,0.68)');
+        surfaceContext.fillStyle = scrim;
+        surfaceContext.fillRect(0, 0, canvasWidth, canvasHeight);
+        cover.surface = surface;
+      } catch {
+        cover.surface = null;
+      }
+    };
+    coverImage.onerror = () => { cover.surface = null; };
+    coverImage.src = COVER_URL;
   }
 
   function random(min, max) {
@@ -229,14 +272,19 @@ export function createRenderer(canvas, context) {
   }
 
   function drawBackdrop() {
-    context.fillStyle = getBackdropGradient();
-    context.fillRect(0, 0, canvasWidth, canvasHeight);
+    // 游戏内背景：封面图（离屏预渲染版）；未就绪时回退渐变底色
+    if (cover.surface) {
+      context.drawImage(cover.surface, 0, 0);
+    } else {
+      context.fillStyle = getBackdropGradient();
+      context.fillRect(0, 0, canvasWidth, canvasHeight);
+    }
 
     context.save();
     context.beginPath();
     context.rect(arena.x, arena.y, arena.w, arena.h);
     context.clip();
-    context.strokeStyle = 'rgba(170,150,210,.10)';
+    context.strokeStyle = cover.surface ? 'rgba(190,170,240,.12)' : 'rgba(170,150,210,.10)';
     context.lineWidth = 1;
     for (let x = arena.x + 30; x < arena.x + arena.w; x += 42) {
       context.beginPath();
