@@ -148,3 +148,113 @@ body[data-mode="menu"] .primary { min-width: 340px; min-height: 68px; font-size:
   body[data-mode="menu"] .arena-outer { width: min(850px, 100%); margin-top: 2px; }
 }
 @media (prefers-reduced-motion: reduce) { body::before, .metric-value.urgent { animation: none !important; } .primary, .overlay { transition: none; } }
+
+/* 指定参赛封面：仅替换开始状态，真实按钮热区仍负责点击、触屏与键盘操作。 */
+#menuPoster { display: none; }
+
+body[data-mode="menu"] {
+  overflow: hidden;
+  background: #02061c;
+}
+body[data-mode="menu"]::before,
+body[data-mode="menu"]::after { display: none; }
+body[data-mode="menu"] #menuPoster {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: block;
+  background: #02061c url("../../assets/cover/start-screen.png") center / cover no-repeat;
+}
+body[data-mode="menu"] .app {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  width: 100%;
+  min-height: 100%;
+  padding: 0;
+  pointer-events: none;
+}
+body[data-mode="menu"] .topline,
+body[data-mode="menu"] .title-group,
+body[data-mode="menu"] .metrics,
+body[data-mode="menu"] .bottom,
+body[data-mode="menu"] .footer { display: none; }
+body[data-mode="menu"] .arena-outer,
+body[data-mode="menu"] .arena-inner {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body[data-mode="menu"] .arena-outer::before,
+body[data-mode="menu"] .arena-outer::after { display: none; }
+body[data-mode="menu"] canvas { opacity: 0; pointer-events: none; }
+body[data-mode="menu"] .overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 21;
+  display: block;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+body[data-mode="menu"] .dialog {
+  position: fixed;
+  top: 74.7%;
+  left: 50%;
+  width: clamp(300px, 33%, 560px);
+  height: 16.5%;
+  min-height: 76px;
+  padding: 0;
+  transform: translateX(-50%);
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+body[data-mode="menu"] .primary {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  color: transparent;
+  background: transparent;
+  box-shadow: none;
+  text-shadow: none;
+  pointer-events: auto;
+}
+body[data-mode="menu"] .primary:hover {
+  transform: none;
+  background: rgba(60, 230, 255, .06);
+  box-shadow: 0 0 30px rgba(49, 236, 255, .36);
+}
+body[data-mode="menu"] .primary:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, .88);
+  outline-offset: 5px;
+}
+body[data-mode="menu"] #soundToggle {
+  top: 2%;
+  right: 1.45%;
+  z-index: 30;
+  width: clamp(44px, 3.4vw, 60px);
+  height: clamp(44px, 3.4vw, 60px);
+  color: #e9f9ff;
+  background: rgba(3, 12, 48, .72) !important;
+}
+
+@media (max-aspect-ratio: 4 / 3) {
+  body[data-mode="menu"] .dialog {
+    width: min(76vw, 58vh);
+  }
+}

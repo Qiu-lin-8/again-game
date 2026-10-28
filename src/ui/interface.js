@@ -103,15 +103,23 @@ export function createInterface({ canvas, onAction, getMode }) {
     });
   }
 
+  function latestPointerSample(event) {
+    const samples = typeof event.getCoalescedEvents === 'function'
+      ? event.getCoalescedEvents()
+      : null;
+    return samples && samples.length ? samples[samples.length - 1] : event;
+  }
+
   function updatePointer(event) {
+    const sample = latestPointerSample(event);
     const rect = canvas.getBoundingClientRect();
     pointer.x = clamp(
-      (event.clientX - rect.left) * GAME_CONFIG.canvas.width / rect.width,
+      (sample.clientX - rect.left) * GAME_CONFIG.canvas.width / rect.width,
       GAME_CONFIG.arena.x + 20,
       GAME_CONFIG.arena.x + GAME_CONFIG.arena.w - 20
     );
     pointer.y = clamp(
-      (event.clientY - rect.top) * GAME_CONFIG.canvas.height / rect.height,
+      (sample.clientY - rect.top) * GAME_CONFIG.canvas.height / rect.height,
       GAME_CONFIG.arena.y + 20,
       GAME_CONFIG.arena.y + GAME_CONFIG.arena.h - 20
     );
@@ -124,7 +132,8 @@ export function createInterface({ canvas, onAction, getMode }) {
     updatePointer(event);
     if (pointer.touch) canvas.setPointerCapture(event.pointerId);
   });
-  canvas.addEventListener('pointermove', (event) => {
+  const pointerMoveEvent = 'onpointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove';
+  canvas.addEventListener(pointerMoveEvent, (event) => {
     if (getMode() !== GAME_MODES.PLAYING) return;
     if (event.pointerType === 'mouse' || (pointer.touch && (event.buttons > 0 || event.pressure > 0))) {
       updatePointer(event);

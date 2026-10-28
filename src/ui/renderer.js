@@ -17,7 +17,7 @@ export function circledNumber(level) {
  * ------------------------------------------------------------------ */
 const HERO_SHEET_URL = new URL('../../assets/character/hero-sheet-outlined.png', import.meta.url).href;
 const FRAME_SIZE = 64;
-const HERO_SCALE = 0.72; // 64*0.72 ≈ 46 整帧 → 角色实体约 23×40px（在 34~40 范围内）
+const HERO_SCALE = 0.84; // 仅放大视觉精灵：角色略高于幽灵，碰撞半径与移动逻辑保持不变
 const HERO_ANCHOR_X = 32;
 const HERO_ANCHOR_Y = 34.5;
 

@@ -12,11 +12,16 @@ import loseUrl from '../assets/audio/lose.wav?url';
 import shieldUrl from '../assets/audio/shield.ogg?url';
 
 const canvas = document.getElementById('game');
+const logicalCanvasSize = { width: canvas.width, height: canvas.height };
+const renderPixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+canvas.width = Math.round(logicalCanvasSize.width * renderPixelRatio);
+canvas.height = Math.round(logicalCanvasSize.height * renderPixelRatio);
 const context = canvas.getContext('2d');
 
 if (!context) {
   alert('当前浏览器不支持 Canvas，请更换 Chrome / Edge / Safari。');
 } else {
+  context.setTransform(renderPixelRatio, 0, 0, renderPixelRatio, 0, 0);
   const game = new Game();
   const renderer = createRenderer(canvas, context);
   const ui = createInterface({
